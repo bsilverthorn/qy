@@ -1,3 +1,4 @@
 Qy is a Python-embedded DSL for generating, via LLVM, optimized native-code
-computation over NumPy arrays.
+computation over NumPy arrays. It's not, unfortunately, ready for public
+consumption. Watch this space.
 
