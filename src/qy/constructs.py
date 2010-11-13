@@ -12,10 +12,8 @@ from llvm.core  import (
     Constant,
     )
 from contextlib import contextmanager
-from cargo.log  import get_logger
 
 iptr_type = Type.int(ctypes.sizeof(ctypes.c_void_p) * 8)
-logger    = get_logger(__name__, level = "WARNING")
 
 def constant_pointer(address, type_):
     """
@@ -38,7 +36,7 @@ def emit_and_execute(module_name = "", optimize = True):
     Prepare for, emit, and run some LLVM IR.
     """
 
-    from cargo.llvm import (
+    from qy import (
         high,
         HighLanguage,
         )
@@ -56,14 +54,12 @@ def emit_and_execute(module_name = "", optimize = True):
 
         module = high.module
 
-        logger.debug("verifying LLVM IR")
-
         module.verify()
 
         # optimize it
-        from llvm.ee            import ExecutionEngine
-        from llvm.passes        import PassManager
-        from cargo.llvm.support import raise_if_set
+        from llvm.ee     import ExecutionEngine
+        from llvm.passes import PassManager
+        from qy.support  import raise_if_set
 
         engine = ExecutionEngine.new(module)
 
@@ -88,13 +84,9 @@ def emit_and_execute(module_name = "", optimize = True):
             manager.add(llvm.passes.PASS_DEAD_CODE_ELIMINATION)
             manager.add(llvm.passes.PASS_CFG_SIMPLIFICATION)
 
-            logger.debug("running optimization passes on LLVM IR")
-
             manager.run(module)
 
         # execute it
-        logger.debug("JITing and executing optimized LLVM IR:\n%s", str(module))
-
         engine.run_function(high.main, [])
 
         raise_if_set()
@@ -154,6 +146,55 @@ def size_of_type(type_):
 
     return dtype_from_type(type_).itemsize
 
+def normalize_dtype(dtype):
+    """
+    Construct an equivalent normal-form dtype.
+
+    Normal-form dtypes are guaranteed to satisfy, in particular, the property
+    of "shape greediness": the dtype's base property, if non-None, refers to a
+    type with empty shape.
+    """
+
+    if dtype.shape:
+        normal_base = normalize_dtype(dtype.base)
+
+        return numpy.dtype((normal_base.base, dtype.shape + normal_base.shape))
+    else:
+        return dtype
+
+def semicast(*arrays):
+    """
+    Broadcast compatible ndarray shape prefixes.
+    """
+
+    # establish the final prefix shape
+    pre_ndim    = max(len(a.shape[:i]) for (a, i) in arrays)
+    pre_padding = [(1,) * (pre_ndim - len(a.shape[:i])) for (a, i) in arrays]
+    pre_shape   = tuple(map(max, *(p + a.shape[:i] for ((a, i), p) in zip(arrays, pre_padding))))
+
+    # broadcast the arrays
+    from numpy.lib.stride_tricks import as_strided
+
+    casts = []
+
+    for ((a, i), p) in zip(arrays, pre_padding):
+        if i is None:
+            i = len(a.shape)
+
+        for (c, d) in zip(pre_shape[len(p):], a.shape[:i]):
+            if c != d and d != 1:
+                raise ValueError("array shapes incompatible for semicast")
+
+        strides  = (0,) * len(p) + tuple(0 if d == 1 else s for (d, s) in zip(a.shape, a.strides))
+        casts   += [as_strided(a, pre_shape + a.shape[i:], strides)]
+
+    # repair dtypes (broken by as_strided)
+    for ((a, _), cast) in zip(arrays, casts):
+        cast.dtype = a.dtype
+
+    # done
+    return (pre_shape, casts)
+
 def dtype_from_integer_type(type_):
     """
     Build a numpy dtype from an LLVM integer type.
@@ -172,8 +213,6 @@ def dtype_from_array_type(type_):
     """
     Build a numpy dtype from an LLVM array type.
     """
-
-    from cargo.numpy import normalize_dtype
 
     raw_dtype = numpy.dtype((dtype_from_type(type_.element), (type_.count,)))
 

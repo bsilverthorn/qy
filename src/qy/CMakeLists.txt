@@ -2,9 +2,9 @@
 # build
 #
 
-add_cython_module(cargo_llvm_support support)
+add_cython_module(qy_support support)
 
-target_link_libraries(cargo_llvm_support ${GSL_LIBRARIES})
+target_link_libraries(qy_support)
 
 #
 # install
@@ -12,8 +12,8 @@ target_link_libraries(cargo_llvm_support ${GSL_LIBRARIES})
 
 install(
     TARGETS
-        cargo_llvm_support
-    DESTINATION lib/cargo/llvm
+        qy_support
+    DESTINATION lib/qy
     )
 install(
     FILES
@@ -21,7 +21,7 @@ install(
 		constructs.py
 		lowloop.py
 		high_level.py
-    DESTINATION lib/cargo/llvm
+    DESTINATION lib/qy
     )
 
 #

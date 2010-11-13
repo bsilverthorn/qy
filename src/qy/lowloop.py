@@ -10,8 +10,8 @@ from llvm.core import (
     Type,
     Constant,
     )
-from cargo.llvm            import iptr_type
-from cargo.llvm.high_level import high
+from qy            import iptr_type
+from qy.high_level import high
 
 class StridedArrays(object):
     """
@@ -117,7 +117,7 @@ def get_strided_type(element_type, shape, strides):
                     shape[0] * strides[0],
                     )
     else:
-        from cargo.llvm import size_of_type
+        from qy import size_of_type
 
         return (element_type, size_of_type(element_type))
 
@@ -233,7 +233,7 @@ class StridedArray(object):
         shape = map(int, shape)
 
         if strides is None:
-            from cargo.llvm import size_of_type
+            from qy import size_of_type
 
             strides   = []
             axis_size = size_of_type(data.type_.pointee)
@@ -259,7 +259,7 @@ class StridedArray(object):
 
         # XXX maintain reference to array in module; decref in destructor
 
-        from cargo.llvm import type_from_dtype
+        from qy import type_from_dtype
 
         type_         = type_from_dtype(ndarray.dtype)
         (location, _) = ndarray.__array_interface__["data"]

@@ -16,7 +16,7 @@ from llvm.core  import (
     Function,
     GlobalVariable,
     )
-from cargo.llvm import iptr_type
+from qy import iptr_type
 
 object_type     = Type.struct([])
 object_ptr_type = Type.pointer(object_type)
@@ -102,7 +102,7 @@ class HighLanguage(object):
                 HighFunction.named("Py_Initialize")()
 
                 # prepare for exception handling
-                from cargo.llvm.support import size_of_jmp_buf
+                from qy.support import size_of_jmp_buf
 
                 context_type = Type.array(Type.int(8), size_of_jmp_buf())
                 context      = GlobalVariable.new(self._module, context_type, "main_context")
@@ -133,8 +133,8 @@ class HighLanguage(object):
 
         # XXX support for other ctypes
 
-        from ctypes     import sizeof
-        from cargo.llvm import type_from_dtype
+        from ctypes import sizeof
+        from qy     import type_from_dtype
 
         ctype_integer_types = \
             set([
@@ -323,7 +323,7 @@ class HighLanguage(object):
         Emit a PRNG invocation.
         """
 
-        from cargo.llvm.support import emit_random_real_unit
+        from qy.support import emit_random_real_unit
 
         return emit_random_real_unit(self)
 
@@ -332,7 +332,7 @@ class HighLanguage(object):
         Emit a PRNG invocation.
         """
 
-        from cargo.llvm.support import emit_random_int
+        from qy.support import emit_random_int
 
         return emit_random_int(self, upper, width)
 
@@ -395,7 +395,7 @@ class HighLanguage(object):
 
             HighLanguage.__whatever += [callable_]
 
-            from cargo.llvm import constant_pointer_to
+            from qy import constant_pointer_to
 
             HighObject(constant_pointer_to(callable_, self.object_ptr_type))(*arguments)
 
@@ -532,7 +532,7 @@ class HighLanguage(object):
         Stack-allocate and return a value.
         """
 
-        from cargo.llvm import size_of_type
+        from qy import size_of_type
 
         type_  = self.type_from_any(type_)
         malloc = HighFunction.named("malloc", Type.pointer(Type.int(8)), [long])
@@ -1591,7 +1591,7 @@ class HighObject(HighPointerValue):
             [high.object_ptr_type] + [a.type_ for a in arguments],
             )
         def invoke_python(*inner_arguments):
-            from cargo.llvm import constant_pointer_to
+            from qy import constant_pointer_to
 
             call_object = \
                 HighFunction.named(
@@ -1631,7 +1631,7 @@ class HighObject(HighPointerValue):
         Build a HighObject for a Python object.
         """
 
-        from cargo.llvm import constant_pointer_to
+        from qy import constant_pointer_to
 
         return HighObject(constant_pointer_to(instance, high.object_ptr_type))
 

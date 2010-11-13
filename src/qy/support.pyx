@@ -5,7 +5,7 @@
 import ctypes
 import numpy
 
-from cargo.llvm import HighFunction
+from qy import HighFunction
 
 from cpython.exc cimport PyErr_Occurred
 

@@ -4,6 +4,6 @@ install(
 		test_high.py
         test_lowloop.py
 		test_constructs.py
-    DESTINATION lib/cargo/llvm/test
+    DESTINATION lib/qy/test
     )
 

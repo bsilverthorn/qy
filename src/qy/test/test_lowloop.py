@@ -11,7 +11,7 @@ from llvm.core  import (
     Builder,
     )
 from llvm.ee    import ExecutionEngine
-from cargo.llvm import (
+from qy import (
     high,
     emit_and_execute,
     StridedArray,
@@ -151,7 +151,7 @@ def test_strided_array_at_complex_dtype():
     array["d"]["n"] = 42
 
     # verify correctness
-    from cargo.llvm import iptr_type
+    from qy import iptr_type
 
     @emit_and_execute()
     def _():
@@ -178,7 +178,7 @@ def test_strided_array_loop_subshape_complex_dtype():
     array["d"]["n"] = 42
 
     # verify correctness
-    from cargo.llvm import iptr_type
+    from qy import iptr_type
 
     @emit_and_execute()
     def _():

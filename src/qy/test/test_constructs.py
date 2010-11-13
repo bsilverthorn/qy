@@ -11,7 +11,7 @@ def test_type_from_dtype_complex():
     Test to-LLVM translation of a complex numpy dtype.
     """
 
-    from cargo.llvm import type_from_dtype
+    from qy import type_from_dtype
 
     dtype = numpy.dtype([("d", [("k", numpy.uint32), ("n", numpy.uint32)], (4,))])
     type_ = type_from_dtype(dtype)
@@ -24,7 +24,7 @@ def test_dtype_from_type_complex():
     """
 
     from llvm.core  import Type
-    from cargo.llvm import (
+    from qy         import (
         type_from_dtype,
         dtype_from_type,
         )

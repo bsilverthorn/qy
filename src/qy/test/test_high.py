@@ -12,7 +12,7 @@ from nose.tools import (
     assert_raises,
     assert_almost_equal,
     )
-from cargo.llvm import (
+from qy import (
     high,
     emit_and_execute,
     HighObject,
@@ -272,7 +272,7 @@ def test_high_assert_():
         high.assert_(True)
 
     # should raise
-    from cargo.llvm import EmittedAssertionError
+    from qy import EmittedAssertionError
 
     def should_raise():
         @emit_and_execute()
