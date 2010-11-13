@@ -1,0 +1,3 @@
+Qy is a Python-embedded DSL for generating, via LLVM, optimized native-code
+computation over NumPy arrays.
+
