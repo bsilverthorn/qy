@@ -8,18 +8,18 @@ import llvm.core
 
 from contextlib import contextmanager
 from llvm.core  import (
-    Type,
-    Value,
-    Module,
-    Builder,
-    Constant,
-    Function,
-    GlobalVariable,
+    Type           as LLVM_Type,
+    Value          as LLVM_Value,
+    Module         as LLVM_Module,
+    Builder        as LLVM_Builder,
+    Constant       as LLVM_Constant,
+    Function       as LLVM_Function,
+    GlobalVariable as LLVM_GlobalVariable,
     )
 from qy import iptr_type
 
-object_type     = Type.struct([])
-object_ptr_type = Type.pointer(object_type)
+object_type     = LLVM_Type.struct([])
+object_ptr_type = LLVM_Type.pointer(object_type)
 
 class EmittedAssertionError(AssertionError):
     """
@@ -64,9 +64,9 @@ class EmittedAssertionError(AssertionError):
 
         return self._emission_stack
 
-class HighLanguage(object):
+class Language(object):
     """
-    Provide a simple higher-level Python-embedded language on top of LLVM.
+    The Qy language, configured.
     """
 
     _language_stack = []
@@ -78,7 +78,7 @@ class HighLanguage(object):
 
         # members
         if module is None:
-            module = Module.new("high")
+            module = LLVM_Module.new("high")
 
         self._module        = module
         self._test_for_nan  = test_for_nan
@@ -86,7 +86,7 @@ class HighLanguage(object):
         self._builder_stack = []
 
         # make Python-support declarations
-        self._module.add_type_name("PyObjectPtr", Type.pointer(Type.struct([])))
+        self._module.add_type_name("PyObjectPtr", LLVM_Type.pointer(LLVM_Type.struct([])))
 
         with self.active():
             # add a main
@@ -104,12 +104,12 @@ class HighLanguage(object):
                 # prepare for exception handling
                 from qy.support import size_of_jmp_buf
 
-                context_type = Type.array(Type.int(8), size_of_jmp_buf())
-                context      = GlobalVariable.new(self._module, context_type, "main_context")
-                setjmp       = HighFunction.named("setjmp", int, [Type.pointer(Type.int(8))])
+                context_type = LLVM_Type.array(LLVM_Type.int(8), size_of_jmp_buf())
+                context      = LLVM_GlobalVariable.new(self._module, context_type, "main_context")
+                setjmp       = HighFunction.named("setjmp", int, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
                 context.linkage     = llvm.core.LINKAGE_INTERNAL
-                context.initializer = Constant.null(context_type)
+                context.initializer = LLVM_Constant.null(context_type)
 
                 self.if_(setjmp(context) == 0)(main_body)
                 self.return_()
@@ -117,7 +117,7 @@ class HighLanguage(object):
         # prepare for user code
         body_entry = main_body._value.append_basic_block("entry")
 
-        self._builder_stack.append(Builder.new(body_entry))
+        self._builder_stack.append(LLVM_Builder.new(body_entry))
 
     def value_from_any(self, value):
         """
@@ -164,10 +164,10 @@ class HighLanguage(object):
             return type_from_dtype(numpy.dtype(some_type))
         elif isinstance(some_type, numpy.dtype):
             return type_from_dtype(some_type)
-        elif isinstance(some_type, Type):
+        elif isinstance(some_type, LLVM_Type):
             return some_type
         elif some_type in ctype_integer_types:
-            return Type.int(sizeof(some_type) * 8)
+            return LLVM_Type.int(sizeof(some_type) * 8)
         else:
             raise TypeError("cannot build type from \"%s\" instance" % type(some_type))
 
@@ -180,11 +180,15 @@ class HighLanguage(object):
             name  = "literal%i" % len(self._literals)
             value = \
                 HighValue.from_low(
-                    GlobalVariable.new(self.module, Type.array(Type.int(8), len(string) + 1), name),
+                    LLVM_GlobalVariable.new(
+                        self.module,
+                        LLVM_Type.array(LLVM_Type.int(8), len(string) + 1),
+                        name,
+                        ),
                     )
 
             value._value.linkage     = llvm.core.LINKAGE_INTERNAL
-            value._value.initializer = Constant.stringz(string)
+            value._value.initializer = LLVM_Constant.stringz(string)
 
             self._literals[string] = value
 
@@ -197,7 +201,7 @@ class HighLanguage(object):
         Emit an if-then statement.
         """
 
-        condition  = self.value_from_any(condition).cast_to(Type.int(1))
+        condition  = self.value_from_any(condition).cast_to(LLVM_Type.int(1))
         then       = self.function.append_basic_block("then")
         merge      = self.function.append_basic_block("merge")
 
@@ -221,7 +225,7 @@ class HighLanguage(object):
         Emit an if-then-else statement.
         """
 
-        condition  = self.value_from_any(condition).cast_to(Type.int(1))
+        condition  = self.value_from_any(condition).cast_to(LLVM_Type.int(1))
         then       = self.function.append_basic_block("then")
         else_      = self.function.append_basic_block("else")
         merge      = self.function.append_basic_block("merge")
@@ -253,7 +257,7 @@ class HighLanguage(object):
         Emit a simple for-style loop.
         """
 
-        index_type = Type.int(32)
+        index_type = LLVM_Type.int(32)
 
         count = self.value_from_any(count)
 
@@ -275,7 +279,7 @@ class HighLanguage(object):
 
             this_index = builder.phi(index_type, "for_loop_index")
 
-            this_index.add_incoming(Constant.int(index_type, 0), start)
+            this_index.add_incoming(LLVM_Constant.int(index_type, 0), start)
 
             builder.cbranch(
                 builder.icmp(
@@ -293,7 +297,7 @@ class HighLanguage(object):
             emit_body(HighValue.from_low(this_index))
 
             this_index.add_incoming(
-                builder.add(this_index, Constant.int(index_type, 1)),
+                builder.add(this_index, LLVM_Constant.int(index_type, 1)),
                 builder.basic_block,
                 )
 
@@ -407,7 +411,7 @@ class HighLanguage(object):
         """
 
         object_ptr_type = self.module.get_type_named("PyObjectPtr")
-        import_         = HighFunction.named("PyImport_ImportModule", object_ptr_type, [Type.pointer(Type.int(8))])
+        import_         = HighFunction.named("PyImport_ImportModule", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
         # XXX error handling
 
@@ -449,7 +453,7 @@ class HighLanguage(object):
         Decrement the refcount of a Python object.
         """
 
-        inc_ref = HighFunction.named("Py_IncRef", Type.void(), [object_ptr_type])
+        inc_ref = HighFunction.named("Py_IncRef", LLVM_Type.void(), [object_ptr_type])
 
         inc_ref(value)
 
@@ -458,7 +462,7 @@ class HighLanguage(object):
         Decrement the refcount of a Python object.
         """
 
-        dec_ref = HighFunction.named("Py_DecRef", Type.void(), [object_ptr_type])
+        dec_ref = HighFunction.named("Py_DecRef", LLVM_Type.void(), [object_ptr_type])
 
         dec_ref(value)
 
@@ -482,9 +486,9 @@ class HighLanguage(object):
 
         object_ptr_type = self.object_ptr_type
         py_format       = HighFunction.named("PyString_Format", object_ptr_type, [object_ptr_type] * 2)
-        py_from_string  = HighFunction.named("PyString_FromString", object_ptr_type, [Type.pointer(Type.int(8))])
+        py_from_string  = HighFunction.named("PyString_FromString", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
-        @HighFunction.define(Type.void(), [a.type_ for a in arguments])
+        @HighFunction.define(LLVM_Type.void(), [a.type_ for a in arguments])
         def py_printf(*inner_arguments):
             """
             Emit the body of the generated print function.
@@ -518,8 +522,8 @@ class HighLanguage(object):
             longjmp = \
                 HighFunction.named(
                     "longjmp",
-                    Type.void(),
-                    [Type.pointer(Type.int(8)), c_int],
+                    LLVM_Type.void(),
+                    [LLVM_Type.pointer(LLVM_Type.int(8)), c_int],
                     )
             context = self.module.get_global_variable_named("main_context")
 
@@ -535,10 +539,10 @@ class HighLanguage(object):
         from qy import size_of_type
 
         type_  = self.type_from_any(type_)
-        malloc = HighFunction.named("malloc", Type.pointer(Type.int(8)), [long])
+        malloc = HighFunction.named("malloc", LLVM_Type.pointer(LLVM_Type.int(8)), [long])
         bytes_ = (self.value_from_any(count) * size_of_type(type_)).cast_to(long)
 
-        return malloc(bytes_).cast_to(Type.pointer(type_))
+        return malloc(bytes_).cast_to(LLVM_Type.pointer(type_))
 
     def stack_allocate(self, type_, initial = None, name = ""):
         """
@@ -559,7 +563,7 @@ class HighLanguage(object):
 
         from traceback import extract_stack
 
-        boolean        = self.value_from_any(boolean).cast_to(Type.int(1))
+        boolean        = self.value_from_any(boolean).cast_to(LLVM_Type.int(1))
         emission_stack = extract_stack()[:-1]
 
         @self.if_(~boolean)
@@ -709,7 +713,7 @@ class HighValue(object):
         Initialize.
         """
 
-        if not isinstance(value, Value):
+        if not isinstance(value, LLVM_Value):
             raise TypeError("HighValue constructor requires an llvm.core.Value")
         elif self.kind is not None and value.type.kind != self.kind:
             raise TypeError(
@@ -1018,31 +1022,31 @@ class HighValue(object):
 
         if isinstance(value, HighValue):
             return value
-        elif isinstance(value, Value):
+        elif isinstance(value, LLVM_Value):
             return HighValue.from_low(value)
         elif isinstance(value, int):
             return \
                 HighValue.from_low(
-                    Constant.int(
-                        Type.int(numpy.dtype(int).itemsize * 8),
+                    LLVM_Constant.int(
+                        LLVM_Type.int(numpy.dtype(int).itemsize * 8),
                         int(value),
                         ),
                     )
         elif isinstance(value, long):
             return \
                 HighValue.from_low(
-                    Constant.int(
-                        Type.int(numpy.dtype(long).itemsize * 8),
+                    LLVM_Constant.int(
+                        LLVM_Type.int(numpy.dtype(long).itemsize * 8),
                         long(value),
                         ),
                     )
         elif isinstance(value, float):
             return \
                 HighValue.from_low(
-                    Constant.real(Type.double(), value),
+                    LLVM_Constant.real(LLVM_Type.double(), value),
                     )
         elif isinstance(value, bool):
-            return HighValue.from_low(Constant.int(Type.int(1), int(value)))
+            return HighValue.from_low(LLVM_Constant.int(LLVM_Type.int(1), int(value)))
         else:
             raise TypeError("cannot build value from \"%s\" instance" % type(value))
 
@@ -1053,7 +1057,7 @@ class HighValue(object):
         """
 
         # sanity
-        if not isinstance(value, Value):
+        if not isinstance(value, LLVM_Value):
             raise TypeError("value is not an LLVM value")
 
         # generate an appropriate value type
@@ -1091,7 +1095,7 @@ class HighIntegerValue(HighValue):
         Return the result of bitwise inversion.
         """
 
-        return high.builder.xor(self._value, Constant.int(self.type_, -1))
+        return high.builder.xor(self._value, LLVM_Constant.int(self.type_, -1))
 
     def __eq__(self, other):
         """
@@ -1483,13 +1487,13 @@ class HighFunction(HighValue):
             return self.type_.args
 
     @staticmethod
-    def named(name, return_type = Type.void(), argument_types = ()):
+    def named(name, return_type = LLVM_Type.void(), argument_types = ()):
         """
         Look up or create a named function.
         """
 
         type_ = \
-            Type.function(
+            LLVM_Type.function(
                 high.type_from_any(return_type),
                 map(high.type_from_any, argument_types),
                 )
@@ -1505,13 +1509,13 @@ class HighFunction(HighValue):
         return HighFunction(high.module.get_function_named(name))
 
     @staticmethod
-    def new_named(name, return_type = Type.void(), argument_types = (), internal = True):
+    def new_named(name, return_type = LLVM_Type.void(), argument_types = (), internal = True):
         """
         Create a named function.
         """
 
         type_ = \
-            Type.function(
+            LLVM_Type.function(
                 high.type_from_any(return_type),
                 map(high.type_from_any, argument_types),
                 )
@@ -1523,7 +1527,7 @@ class HighFunction(HighValue):
         return HighFunction(function)
 
     @staticmethod
-    def define(return_type = Type.void(), argument_types = (), name = None, internal = True):
+    def define(return_type = LLVM_Type.void(), argument_types = (), name = None, internal = True):
         """
         Look up or create a named function.
         """
@@ -1545,7 +1549,7 @@ class HighFunction(HighValue):
 
             entry = function._value.append_basic_block("entry")
 
-            with high.this_builder(Builder.new(entry)) as builder:
+            with high.this_builder(LLVM_Builder.new(entry)) as builder:
                 emit(*function.argument_values)
 
             return function
@@ -1559,12 +1563,12 @@ class HighFunction(HighValue):
         """
 
         type_ = \
-            Type.function(
+            LLVM_Type.function(
                 high.type_from_any(return_type),
                 map(high.type_from_any, argument_types),
                 )
 
-        return HighFunction(Constant.int(iptr_type, address).inttoptr(Type.pointer(type_)))
+        return HighFunction(LLVM_Constant.int(iptr_type, address).inttoptr(LLVM_Type.pointer(type_)))
 
     @staticmethod
     def intrinsic(intrinsic_id, qualifiers = ()):
@@ -1574,7 +1578,7 @@ class HighFunction(HighValue):
 
         qualifiers = map(high.type_from_any, qualifiers)
 
-        return HighFunction(Function.intrinsic(high.module, intrinsic_id, qualifiers))
+        return HighFunction(LLVM_Function.intrinsic(high.module, intrinsic_id, qualifiers))
 
 class HighObject(HighPointerValue):
     """
@@ -1587,7 +1591,7 @@ class HighObject(HighPointerValue):
         """
 
         @HighFunction.define(
-            Type.void(),
+            LLVM_Type.void(),
             [high.object_ptr_type] + [a.type_ for a in arguments],
             )
         def invoke_python(*inner_arguments):
@@ -1617,7 +1621,12 @@ class HighObject(HighPointerValue):
 
         object_ptr_type = high.object_ptr_type
 
-        get_attr = HighFunction.named("PyObject_GetAttrString", object_ptr_type, [object_ptr_type, Type.pointer(Type.int(8))])
+        get_attr = \
+            HighFunction.named(
+                "PyObject_GetAttrString",
+                object_ptr_type,
+                [object_ptr_type, LLVM_Type.pointer(LLVM_Type.int(8))],
+                )
 
         result = get_attr(self, high.string_literal(name))
 
