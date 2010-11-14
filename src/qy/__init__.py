@@ -2,9 +2,10 @@
 @author: Bryan Silverthorn <bcs@cargo-cult.org>
 """
 
-# XXX absolute imports?!
+from __future__ import absolute_import
 
-from constructs import *
-from lowloop    import *
-from high_level import *
+from .module     import *
+from .language   import *
+from .lowloop    import *
+from .statements import *
 

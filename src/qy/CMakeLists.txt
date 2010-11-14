@@ -18,9 +18,10 @@ install(
 install(
     FILES
         __init__.py
-		constructs.py
-		lowloop.py
-		high_level.py
+        language.py
+        lowloop.py
+        module.py
+        statements.py
     DESTINATION lib/qy
     )
 

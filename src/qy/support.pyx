@@ -5,7 +5,7 @@
 import ctypes
 import numpy
 
-from qy import HighFunction
+from qy import Function
 
 from cpython.exc cimport PyErr_Occurred
 
@@ -28,7 +28,7 @@ def emit_random_real_unit(high):
     Emit a PRNG invocation.
     """
 
-    c_random_double = HighFunction.pointed(<long>&random_double, float, [])
+    c_random_double = Function.pointed(<long>&random_double, float, [])
 
     return c_random_double()
 
@@ -37,7 +37,7 @@ def emit_random_int(high, upper, width):
     Emit a PRNG invocation.
     """
 
-    c_random_int = HighFunction.pointed(<long>&random_int, ctypes.c_long, [ctypes.c_long])
+    c_random_int = Function.pointed(<long>&random_int, ctypes.c_long, [ctypes.c_long])
 
     return c_random_int(upper)
 

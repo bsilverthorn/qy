@@ -3,16 +3,10 @@
 """
 
 import numpy
+import qy
 
 from nose.tools import assert_equal
-from llvm.core  import (
-    Type,
-    Module,
-    Builder,
-    )
-from llvm.ee    import ExecutionEngine
-from qy import (
-    high,
+from qy         import (
     emit_and_execute,
     StridedArray,
     StridedArrays,
@@ -160,36 +154,8 @@ def test_strided_array_at_complex_dtype():
         at0 = ll_array.at(0).data.cast_to(iptr_type)
         at1 = ll_array.at(1).data.cast_to(iptr_type)
 
-        @high.python(at0, at1)
+        @qy.python(at0, at1)
         def _(at0_py, at1_py):
             assert_equal(at0_py, array[0].__array_interface__["data"][0])
             assert_equal(at1_py, array[1].__array_interface__["data"][0])
-
-def test_strided_array_loop_subshape_complex_dtype():
-    """
-    Test strided-array loop compilation with a complex dtype.
-    """
-
-    # generate some test data
-    dtype = numpy.dtype([("d", [("k", numpy.uint32), ("n", numpy.uint32)], (4,))])
-    array = numpy.empty(2, dtype)
-
-    array["d"]["k"] = 0
-    array["d"]["n"] = 42
-
-    # verify correctness
-    from qy import iptr_type
-
-    @emit_and_execute()
-    def _():
-        ll_array  = StridedArray.from_numpy(array)
-        ll_arrays = StridedArrays({"a" : ll_array})
-
-        @ll_arrays.loop_all()
-        def _(l):
-            high.py_printf("address %i", l.arrays["a"].data.cast_to(iptr_type))
-            #@high.python(at0, at1)
-            #def _(at0_py, at1_py):
-                #assert_equal(at0_py, array[0].__array_interface__["data"][0])
-                #assert_equal(at1_py, array[1].__array_interface__["data"][0])
 

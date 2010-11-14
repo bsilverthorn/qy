@@ -5,13 +5,13 @@
 import ctypes
 import numpy
 import llvm.core
+import qy
 
 from llvm.core import (
-    Type,
-    Constant,
+    Type     as LLVM_Type,
+    Constant as LLVM_Constant,
     )
-from qy            import iptr_type
-from qy.high_level import high
+from qy import iptr_type
 
 def semicast(*arrays):
     """
@@ -63,8 +63,6 @@ class StridedArrays(object):
         Emit IR to return subarrays at a particular location.
         """
 
-        #high.printf("indices" + " %s" * len(indices), *indices)
-
         return StridedArrays((k, v.at(*indices)) for (k, v) in self._arrays.items())
 
     def loop_all(self, axes = None):
@@ -97,7 +95,7 @@ class StridedArrays(object):
                 if d == axes:
                     emit_inner(self.at_all(*indices))
                 elif shape[d] > 1:
-                    @high.for_(shape[d])
+                    @qy.for_(shape[d])
                     def _(index):
                         emit_for_axis(d + 1, indices + [index])
                 else:
@@ -140,10 +138,10 @@ def get_strided_type(element_type, shape, strides):
                 raise ValueError("array stride too small")
             else:
                 return (
-                    Type.array(
-                        Type.packed_struct([
+                    LLVM_Type.array(
+                        LLVM_Type.packed_struct([
                             inner_type,
-                            Type.array(Type.int(8), strides[0] - inner_size),
+                            LLVM_Type.array(LLVM_Type.int(8), strides[0] - inner_size),
                             ]),
                         shape[0],
                         ),
@@ -217,7 +215,7 @@ class StridedArray(object):
         # XXX need to include axes which may have emerged
         # XXX need some general clarification of the StridedArray model?
 
-        simple_data = self._strided_data.cast_to(Type.pointer(self._element_type))
+        simple_data = self._strided_data.cast_to(LLVM_Type.pointer(self._element_type))
         inner_data  = simple_data.gep(*indices)
 
         return StridedArray.from_raw(inner_data, self._shape, self._strides)
@@ -280,7 +278,7 @@ class StridedArray(object):
             strides = map(int, strides)
 
         (strided_type, _) = get_strided_type(data.type_.pointee, shape, strides)
-        strided_data      = data.cast_to(Type.pointer(strided_type))
+        strided_data      = data.cast_to(LLVM_Type.pointer(strided_type))
 
         return StridedArray(strided_data, shape, strides, data.type_.pointee)
 
@@ -296,9 +294,9 @@ class StridedArray(object):
 
         type_         = type_from_dtype(ndarray.dtype)
         (location, _) = ndarray.__array_interface__["data"]
-        data          = Constant.int(iptr_type, location).inttoptr(Type.pointer(type_))
+        data          = LLVM_Constant.int(iptr_type, location).inttoptr(LLVM_Type.pointer(type_))
 
-        return StridedArray.from_raw(high.value_from_any(data), ndarray.shape, ndarray.strides)
+        return StridedArray.from_raw(qy.value_from_any(data), ndarray.shape, ndarray.strides)
 
     @staticmethod
     def from_typed_pointer(data):
@@ -319,7 +317,7 @@ class StridedArray(object):
         Heap-allocate and return a (contiguous) array.
         """
 
-        data = high.heap_allocate(type_, numpy.product(shape))
+        data = qy.heap_allocate(type_, numpy.product(shape))
 
         return StridedArray.from_raw(data, shape)
 

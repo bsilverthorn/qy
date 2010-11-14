@@ -5,6 +5,7 @@
 import ctypes
 import numpy
 import llvm.core
+import qy
 
 from contextlib import contextmanager
 from llvm.core  import (
@@ -64,7 +65,14 @@ class EmittedAssertionError(AssertionError):
 
         return self._emission_stack
 
-class Language(object):
+def get_qy():
+    """
+    Return the currently-active Qy language instance.
+    """
+
+    return Qy.get_active()
+
+class Qy(object):
     """
     The Qy language, configured.
     """
@@ -78,7 +86,7 @@ class Language(object):
 
         # members
         if module is None:
-            module = LLVM_Module.new("high")
+            module = LLVM_Module.new("qy")
 
         self._module        = module
         self._test_for_nan  = test_for_nan
@@ -90,23 +98,23 @@ class Language(object):
 
         with self.active():
             # add a main
-            main_body = HighFunction.new_named("main_body")
+            main_body = Function.new_named("main_body")
 
-            @HighFunction.define(internal = False)
+            @Function.define(internal = False)
             def main():
                 """
                 The true entry point.
                 """
 
                 # initialize the Python runtime (matters only for certain test scenarios)
-                HighFunction.named("Py_Initialize")()
+                Function.named("Py_Initialize")()
 
                 # prepare for exception handling
                 from qy.support import size_of_jmp_buf
 
                 context_type = LLVM_Type.array(LLVM_Type.int(8), size_of_jmp_buf())
                 context      = LLVM_GlobalVariable.new(self._module, context_type, "main_context")
-                setjmp       = HighFunction.named("setjmp", int, [LLVM_Type.pointer(LLVM_Type.int(8))])
+                setjmp       = Function.named("setjmp", int, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
                 context.linkage     = llvm.core.LINKAGE_INTERNAL
                 context.initializer = LLVM_Constant.null(context_type)
@@ -124,7 +132,7 @@ class Language(object):
         Return a wrapping value.
         """
 
-        return HighValue.from_any(value)
+        return Value.from_any(value)
 
     def type_from_any(self, some_type):
         """
@@ -179,7 +187,7 @@ class Language(object):
         if string not in self._literals:
             name  = "literal%i" % len(self._literals)
             value = \
-                HighValue.from_low(
+                Value.from_low(
                     LLVM_GlobalVariable.new(
                         self.module,
                         LLVM_Type.array(LLVM_Type.int(8), len(string) + 1),
@@ -294,7 +302,7 @@ class Language(object):
             # build the flesh block
             builder.position_at_end(flesh)
 
-            emit_body(HighValue.from_low(this_index))
+            emit_body(Value.from_low(this_index))
 
             this_index.add_incoming(
                 builder.add(this_index, LLVM_Constant.int(index_type, 1)),
@@ -345,7 +353,7 @@ class Language(object):
         Emit a natural log computation.
         """
 
-        log    = HighFunction.intrinsic(llvm.core.INTR_LOG, [float])
+        log    = Function.intrinsic(llvm.core.INTR_LOG, [float])
         result = log(value)
 
         if self._test_for_nan:
@@ -358,7 +366,7 @@ class Language(object):
         Emit a natural log computation.
         """
 
-        log1p = HighFunction.named("log1p", float, [float])
+        log1p = Function.named("log1p", float, [float])
 
         log1p._value.add_attribute(llvm.core.ATTR_NO_UNWIND)
         log1p._value.add_attribute(llvm.core.ATTR_READONLY)
@@ -375,7 +383,7 @@ class Language(object):
         Emit a natural exponentiation.
         """
 
-        exp    = HighFunction.intrinsic(llvm.core.INTR_EXP, [float])
+        exp    = Function.intrinsic(llvm.core.INTR_EXP, [float])
         result = exp(value)
 
         if self._test_for_nan:
@@ -397,11 +405,11 @@ class Language(object):
 
             # XXX properly associate a destructor with the module, etc
 
-            HighLanguage.__whatever += [callable_]
+            Qy.__whatever += [callable_]
 
             from qy import constant_pointer_to
 
-            HighObject(constant_pointer_to(callable_, self.object_ptr_type))(*arguments)
+            Object(constant_pointer_to(callable_, self.object_ptr_type))(*arguments)
 
         return decorator
 
@@ -411,11 +419,11 @@ class Language(object):
         """
 
         object_ptr_type = self.module.get_type_named("PyObjectPtr")
-        import_         = HighFunction.named("PyImport_ImportModule", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
+        import_         = Function.named("PyImport_ImportModule", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
         # XXX error handling
 
-        return HighObject(import_(self.string_literal(name))._value)
+        return Object(import_(self.string_literal(name))._value)
 
     @contextmanager
     def py_scope(self):
@@ -423,16 +431,16 @@ class Language(object):
         Define a Python object lifetime scope.
         """
 
-        yield HighPyScope()
+        yield ObjectScope()
 
     def py_tuple(self, *values):
         """
-        Build a Python tuple from high-LLVM values.
+        Build a Python tuple from Qy values.
         """
 
-        tuple_new      = HighFunction.named("PyTuple_New", object_ptr_type, [ctypes.c_int])
+        tuple_new      = Function.named("PyTuple_New", object_ptr_type, [ctypes.c_int])
         tuple_set_item = \
-            HighFunction.named(
+            Function.named(
                 "PyTuple_SetItem",
                 ctypes.c_int,
                 [object_ptr_type, ctypes.c_size_t, object_ptr_type],
@@ -453,7 +461,7 @@ class Language(object):
         Decrement the refcount of a Python object.
         """
 
-        inc_ref = HighFunction.named("Py_IncRef", LLVM_Type.void(), [object_ptr_type])
+        inc_ref = Function.named("Py_IncRef", LLVM_Type.void(), [object_ptr_type])
 
         inc_ref(value)
 
@@ -462,7 +470,7 @@ class Language(object):
         Decrement the refcount of a Python object.
         """
 
-        dec_ref = HighFunction.named("Py_DecRef", LLVM_Type.void(), [object_ptr_type])
+        dec_ref = Function.named("Py_DecRef", LLVM_Type.void(), [object_ptr_type])
 
         dec_ref(value)
 
@@ -472,7 +480,7 @@ class Language(object):
         """
 
         if isinstance(value, str):
-            value = HighObject.from_string(value)
+            value = Object.from_string(value)
         elif value.type_ != self.object_ptr_type:
             raise TypeError("py_print() expects a str or object pointer argument")
 
@@ -485,10 +493,10 @@ class Language(object):
         """
 
         object_ptr_type = self.object_ptr_type
-        py_format       = HighFunction.named("PyString_Format", object_ptr_type, [object_ptr_type] * 2)
-        py_from_string  = HighFunction.named("PyString_FromString", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
+        py_format       = Function.named("PyString_Format", object_ptr_type, [object_ptr_type] * 2)
+        py_from_string  = Function.named("PyString_FromString", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
 
-        @HighFunction.define(LLVM_Type.void(), [a.type_ for a in arguments])
+        @Function.define(LLVM_Type.void(), [a.type_ for a in arguments])
         def py_printf(*inner_arguments):
             """
             Emit the body of the generated print function.
@@ -496,7 +504,7 @@ class Language(object):
 
             # build the output string
             format_object    = py_from_string(self.string_literal(format_))
-            arguments_object = high.py_tuple(*inner_arguments)
+            arguments_object = qy.py_tuple(*inner_arguments)
             output_object    = py_format(format_object, arguments_object)
 
             self.py_dec_ref(format_object)
@@ -517,10 +525,10 @@ class Language(object):
 
         from ctypes import c_int
 
-        @high.if_(value == 0)
+        @qy.if_(value == 0)
         def _():
             longjmp = \
-                HighFunction.named(
+                Function.named(
                     "longjmp",
                     LLVM_Type.void(),
                     [LLVM_Type.pointer(LLVM_Type.int(8)), c_int],
@@ -539,7 +547,7 @@ class Language(object):
         from qy import size_of_type
 
         type_  = self.type_from_any(type_)
-        malloc = HighFunction.named("malloc", LLVM_Type.pointer(LLVM_Type.int(8)), [long])
+        malloc = Function.named("malloc", LLVM_Type.pointer(LLVM_Type.int(8)), [long])
         bytes_ = (self.value_from_any(count) * size_of_type(type_)).cast_to(long)
 
         return malloc(bytes_).cast_to(LLVM_Type.pointer(type_))
@@ -549,7 +557,7 @@ class Language(object):
         Stack-allocate and return a value.
         """
 
-        allocated = HighValue.from_low(self.builder.alloca(self.type_from_any(type_), name))
+        allocated = Value.from_low(self.builder.alloca(self.type_from_any(type_), name))
 
         if initial is not None:
             self.value_from_any(initial).store(allocated)
@@ -589,11 +597,11 @@ class Language(object):
         Make a new language instance active in this context.
         """
 
-        HighLanguage._language_stack.append(self)
+        Qy._language_stack.append(self)
 
         yield self
 
-        HighLanguage._language_stack.pop()
+        Qy._language_stack.pop()
 
     @contextmanager
     def this_builder(self, builder):
@@ -687,23 +695,9 @@ class Language(object):
         Get the currently-active language instance.
         """
 
-        return HighLanguage._language_stack[-1]
+        return Qy._language_stack[-1]
 
-class HighLanguageDispatcher(object):
-    """
-    Refer to the currently-active Qy language instance.
-    """
-
-    def __getattr__(self, name):
-        """
-        Retrieve an attribute of the currently-active Qy instance.
-        """
-
-        return getattr(HighLanguage.get_active(), name)
-
-high = HighLanguageDispatcher()
-
-class HighValue(object):
+class Value(object):
     """
     Value in the wrapper language.
     """
@@ -714,7 +708,7 @@ class HighValue(object):
         """
 
         if not isinstance(value, LLVM_Value):
-            raise TypeError("HighValue constructor requires an llvm.core.Value")
+            raise TypeError("Value constructor requires an llvm.core.Value")
         elif self.kind is not None and value.type.kind != self.kind:
             raise TypeError(
                 "cannot construct an %s instance from a %s value",
@@ -736,7 +730,7 @@ class HighValue(object):
         Return a parseable string representation of this value.
         """
 
-        return "HighValue.from_low(%s)" % repr(self._value)
+        return "Value.from_low(%s)" % repr(self._value)
 
     def __lt__(self, other):
         """
@@ -988,7 +982,7 @@ class HighValue(object):
         Store this value to the specified pointer.
         """
 
-        return high.builder.store(self._value, pointer._value)
+        return Qy.get_active().builder.store(self._value, pointer._value)
 
     @property
     def low(self):
@@ -1017,16 +1011,16 @@ class HighValue(object):
     @staticmethod
     def from_any(value):
         """
-        Build a high-level wrapped value from some value.
+        Build a Qy value from some value.
         """
 
-        if isinstance(value, HighValue):
+        if isinstance(value, Value):
             return value
         elif isinstance(value, LLVM_Value):
-            return HighValue.from_low(value)
+            return Value.from_low(value)
         elif isinstance(value, int):
             return \
-                HighValue.from_low(
+                Value.from_low(
                     LLVM_Constant.int(
                         LLVM_Type.int(numpy.dtype(int).itemsize * 8),
                         int(value),
@@ -1034,7 +1028,7 @@ class HighValue(object):
                     )
         elif isinstance(value, long):
             return \
-                HighValue.from_low(
+                Value.from_low(
                     LLVM_Constant.int(
                         LLVM_Type.int(numpy.dtype(long).itemsize * 8),
                         long(value),
@@ -1042,18 +1036,18 @@ class HighValue(object):
                     )
         elif isinstance(value, float):
             return \
-                HighValue.from_low(
+                Value.from_low(
                     LLVM_Constant.real(LLVM_Type.double(), value),
                     )
         elif isinstance(value, bool):
-            return HighValue.from_low(LLVM_Constant.int(LLVM_Type.int(1), int(value)))
+            return Value.from_low(LLVM_Constant.int(LLVM_Type.int(1), int(value)))
         else:
             raise TypeError("cannot build value from \"%s\" instance" % type(value))
 
     @staticmethod
     def from_low(value):
         """
-        Build a high-level wrapped value from an LLVM value.
+        Build a Qy value from an LLVM value.
         """
 
         # sanity
@@ -1062,13 +1056,13 @@ class HighValue(object):
 
         # generate an appropriate value type
         if value.type.kind == llvm.core.TYPE_INTEGER:
-            return HighIntegerValue(value)
+            return IntegerValue(value)
         elif value.type.kind == llvm.core.TYPE_DOUBLE:
-            return HighRealValue(value)
+            return RealValue(value)
         elif value.type.kind == llvm.core.TYPE_POINTER:
-            return HighPointerValue(value)
+            return PointerValue(value)
         else:
-            return HighValue(value)
+            return Value(value)
 
 class CoercionError(TypeError):
     """
@@ -1085,7 +1079,7 @@ class CoercionError(TypeError):
             "don't know how to convert from %s to %s" % (from_type, to_type),
             )
 
-class HighIntegerValue(HighValue):
+class IntegerValue(Value):
     """
     Integer value in the wrapper language.
     """
@@ -1095,7 +1089,7 @@ class HighIntegerValue(HighValue):
         Return the result of bitwise inversion.
         """
 
-        return high.builder.xor(self._value, LLVM_Constant.int(self.type_, -1))
+        return get_qy().builder.xor(self._value, LLVM_Constant.int(self.type_, -1))
 
     def __eq__(self, other):
         """
@@ -1103,11 +1097,11 @@ class HighIntegerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.icmp(
+            Value.from_low(
+                get_qy().builder.icmp(
                     llvm.core.ICMP_EQ,
                     self._value,
-                    high.value_from_any(other)._value,
+                    qy.value_from_any(other)._value,
                     ),
                 )
 
@@ -1117,11 +1111,11 @@ class HighIntegerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.icmp(
+            Value.from_low(
+                get_qy().builder.icmp(
                     llvm.core.ICMP_SGE,
                     self._value,
-                    high.value_from_any(other).cast_to(self.type_)._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
                     ),
                 )
 
@@ -1131,11 +1125,11 @@ class HighIntegerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.icmp(
+            Value.from_low(
+                get_qy().builder.icmp(
                     llvm.core.ICMP_SLE,
                     self._value,
-                    high.value_from_any(other).cast_to(self.type_)._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
                     ),
                 )
 
@@ -1144,72 +1138,72 @@ class HighIntegerValue(HighValue):
         Return the result of an addition.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        return HighIntegerValue(high.builder.add(self._value, other._value))
+        return IntegerValue(get_qy().builder.add(self._value, other._value))
 
     def __sub__(self, other):
         """
         Return the result of a subtraction.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        return HighIntegerValue(high.builder.sub(self._value, other._value))
+        return IntegerValue(get_qy().builder.sub(self._value, other._value))
 
     def __mul__(self, other):
         """
         Return the result of a multiplication.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        return HighIntegerValue(high.builder.mul(self._value, other._value))
+        return IntegerValue(get_qy().builder.mul(self._value, other._value))
 
     def __div__(self, other):
         """
         Return the result of a division.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        return HighIntegerValue(high.builder.sdiv(self._value, other._value))
+        return IntegerValue(get_qy().builder.sdiv(self._value, other._value))
 
     def cast_to(self, type_, name = ""):
         """
         Cast this value to the specified type.
         """
 
-        # XXX cleanly handle signedness somehow (explicit "signed" highvalue?)
+        # XXX cleanly handle signedness somehow (explicit "signed" qy value?)
 
-        type_     = high.type_from_any(type_)
+        type_     = qy.type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_DOUBLE:
-            low_value = high.builder.sitofp(self._value, type_, name)
+            low_value = get_qy().builder.sitofp(self._value, type_, name)
         elif type_.kind == llvm.core.TYPE_INTEGER:
             if self.type_.width == type_.width:
                 low_value = self._value
             elif self.type_.width < type_.width:
-                low_value = high.builder.sext(self._value, type_, name)
+                low_value = get_qy().builder.sext(self._value, type_, name)
             elif self.type_.width > type_.width:
-                low_value = high.builder.trunc(self._value, type_, name)
+                low_value = get_qy().builder.trunc(self._value, type_, name)
 
         if low_value is None:
             raise CoercionError(self.type_, type_)
         else:
-            return HighValue.from_any(low_value)
+            return Value.from_any(low_value)
 
     def to_python(self):
         """
         Emit conversion of this value to a Python object.
         """
 
-        int_from_long = HighFunction.named("PyInt_FromLong", object_ptr_type, [ctypes.c_long])
+        int_from_long = Function.named("PyInt_FromLong", object_ptr_type, [ctypes.c_long])
 
         return int_from_long(self._value)
 
-class HighRealValue(HighValue):
+class RealValue(Value):
     """
     Integer value in the wrapper language.
     """
@@ -1220,11 +1214,11 @@ class HighRealValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.fcmp(
+            Value.from_low(
+                get_qy().builder.fcmp(
                     llvm.core.FCMP_OEQ,
                     self._value,
-                    high.value_from_any(other)._value,
+                    qy.value_from_any(other)._value,
                     ),
                 )
 
@@ -1234,11 +1228,11 @@ class HighRealValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.fcmp(
+            Value.from_low(
+                get_qy().builder.fcmp(
                     llvm.core.FCMP_OGE,
                     self._value,
-                    high.value_from_any(other).cast_to(self.type_)._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
                     ),
                 )
 
@@ -1248,11 +1242,11 @@ class HighRealValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.fcmp(
+            Value.from_low(
+                get_qy().builder.fcmp(
                     llvm.core.FCMP_OLE,
                     self._value,
-                    high.value_from_any(other).cast_to(self.type_)._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
                     ),
                 )
 
@@ -1261,11 +1255,11 @@ class HighRealValue(HighValue):
         Return the result of an addition.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
-        value = HighRealValue(high.builder.fadd(self._value, other._value))
+        other = qy.value_from_any(other).cast_to(self.type_)
+        value = RealValue(get_qy().builder.fadd(self._value, other._value))
 
-        if high.test_for_nan:
-            high.assert_(~value.is_nan, "result of %s + %s is not a number", other, self)
+        if get_qy().test_for_nan:
+            qy.assert_(~value.is_nan, "result of %s + %s is not a number", other, self)
 
         return value
 
@@ -1274,11 +1268,11 @@ class HighRealValue(HighValue):
         Return the result of a subtraction.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
-        value = HighRealValue(high.builder.fsub(self._value, other._value))
+        other = qy.value_from_any(other).cast_to(self.type_)
+        value = RealValue(get_qy().builder.fsub(self._value, other._value))
 
-        if high.test_for_nan:
-            high.assert_(~value.is_nan, "result of %s - %s is not a number", other, self)
+        if get_qy().test_for_nan:
+            qy.assert_(~value.is_nan, "result of %s - %s is not a number", other, self)
 
         return value
 
@@ -1287,11 +1281,11 @@ class HighRealValue(HighValue):
         Return the result of a multiplication.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
-        value = HighRealValue(high.builder.fmul(self._value, other._value))
+        other = qy.value_from_any(other).cast_to(self.type_)
+        value = RealValue(get_qy().builder.fmul(self._value, other._value))
 
-        if high.test_for_nan:
-            high.assert_(~value.is_nan, "result of %s * %s is not a number", other, self)
+        if get_qy().test_for_nan:
+            qy.assert_(~value.is_nan, "result of %s * %s is not a number", other, self)
 
         return value
 
@@ -1300,11 +1294,11 @@ class HighRealValue(HighValue):
         Return the result of a division.
         """
 
-        other = high.value_from_any(other).cast_to(self.type_)
-        value = HighRealValue(high.builder.fdiv(self._value, other._value))
+        other = qy.value_from_any(other).cast_to(self.type_)
+        value = RealValue(get_qy().builder.fdiv(self._value, other._value))
 
-        if high.test_for_nan:
-            high.assert_(~value.is_nan, "result of %s / %s is not a number", other, self)
+        if get_qy().test_for_nan:
+            qy.assert_(~value.is_nan, "result of %s / %s is not a number", other, self)
 
         return value
 
@@ -1315,8 +1309,8 @@ class HighRealValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.fcmp(
+            Value.from_low(
+                get_qy().builder.fcmp(
                     llvm.core.FCMP_UNO,
                     self._value,
                     self._value,
@@ -1330,30 +1324,30 @@ class HighRealValue(HighValue):
 
         # XXX support more casts
 
-        type_     = high.type_from_any(type_)
+        type_     = qy.type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_DOUBLE:
             if self.type_.kind == llvm.core.TYPE_DOUBLE:
                 low_value = self._value
         if type_.kind == llvm.core.TYPE_INTEGER:
-            low_value = high.builder.fptosi(self._value, type_, name)
+            low_value = get_qy().builder.fptosi(self._value, type_, name)
 
         if low_value is None:
             raise CoercionError(self.type_, type_)
         else:
-            return HighValue.from_low(low_value)
+            return Value.from_low(low_value)
 
     def to_python(self):
         """
         Emit conversion of this value to a Python object.
         """
 
-        float_from_double = HighFunction.named("PyFloat_FromDouble", object_ptr_type, [float])
+        float_from_double = Function.named("PyFloat_FromDouble", object_ptr_type, [float])
 
         return float_from_double(self._value)
 
-class HighPointerValue(HighValue):
+class PointerValue(Value):
     """
     Pointer value in the wrapper language.
     """
@@ -1364,11 +1358,11 @@ class HighPointerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.icmp(
+            Value.from_low(
+                get_qy().builder.icmp(
                     llvm.core.ICMP_EQ,
-                    high.builder.ptrtoint(self._value, iptr_type),
-                    high.value_from_any(other).cast_to(iptr_type)._value,
+                    get_qy().builder.ptrtoint(self._value, iptr_type),
+                    qy.value_from_any(other).cast_to(iptr_type)._value,
                     ),
                 )
 
@@ -1378,8 +1372,8 @@ class HighPointerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.load(self._value, name = name),
+            Value.from_low(
+                get_qy().builder.load(self._value, name = name),
                 )
 
     def gep(self, *indices):
@@ -1388,10 +1382,10 @@ class HighPointerValue(HighValue):
         """
 
         return \
-            HighValue.from_low(
-                high.builder.gep(
+            Value.from_low(
+                get_qy().builder.gep(
                     self._value,
-                    [HighValue.from_any(i)._value for i in indices],
+                    [Value.from_any(i)._value for i in indices],
                     ),
                 )
 
@@ -1400,7 +1394,7 @@ class HighPointerValue(HighValue):
         Build a Python-compatible argument value.
         """
 
-        if self.type_ == high.object_ptr_type:
+        if self.type_ == qy.object_ptr_type:
             return self._value
         else:
             raise TypeError("unknown to-Python conversion for %s" % self.type_)
@@ -1412,26 +1406,26 @@ class HighPointerValue(HighValue):
 
         # XXX support more casts
 
-        type_     = high.type_from_any(type_)
+        type_     = qy.type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_POINTER:
-            low_value = high.builder.bitcast(self._value, type_, name)
+            low_value = get_qy().builder.bitcast(self._value, type_, name)
         elif type_.kind == llvm.core.TYPE_INTEGER:
             if type_.width == iptr_type.width:
-                low_value = high.builder.ptrtoint(self._value, type_, name)
+                low_value = get_qy().builder.ptrtoint(self._value, type_, name)
 
         if low_value is None:
             raise CoercionError(self.type_, type_)
         else:
-            return HighValue.from_any(low_value)
+            return Value.from_any(low_value)
 
-class HighStructValue(HighValue):
+class StructValue(Value):
     """
     Struct value in the wrapper language.
     """
 
-class HighFunction(HighValue):
+class Function(Value):
     """
     Function in the wrapper language.
     """
@@ -1452,12 +1446,12 @@ class HighFunction(HighValue):
                 )
 
         # emit the call
-        arguments = map(high.value_from_any, arguments)
+        arguments = map(qy.value_from_any, arguments)
         coerced   = [v.cast_to(a) for (v, a) in zip(arguments, self.argument_types)]
 
         return \
-            HighValue.from_low(
-                high.builder.call(
+            Value.from_low(
+                get_qy().builder.call(
                     self._value,
                     [c.low for c in coerced],
                     ),
@@ -1471,7 +1465,7 @@ class HighFunction(HighValue):
         Meaningful only inside the body of this function.
         """
 
-        return map(high.value_from_any, self._value.args)
+        return map(qy.value_from_any, self._value.args)
 
     @property
     def argument_types(self):
@@ -1494,11 +1488,11 @@ class HighFunction(HighValue):
 
         type_ = \
             LLVM_Type.function(
-                high.type_from_any(return_type),
-                map(high.type_from_any, argument_types),
+                qy.type_from_any(return_type),
+                map(qy.type_from_any, argument_types),
                 )
 
-        return HighFunction(high.module.get_or_insert_function(type_, name))
+        return Function(Qy.get_active().module.get_or_insert_function(type_, name))
 
     @staticmethod
     def get_named(name):
@@ -1506,7 +1500,7 @@ class HighFunction(HighValue):
         Look up a named function.
         """
 
-        return HighFunction(high.module.get_function_named(name))
+        return Function(Qy.get_active().module.get_function_named(name))
 
     @staticmethod
     def new_named(name, return_type = LLVM_Type.void(), argument_types = (), internal = True):
@@ -1516,15 +1510,15 @@ class HighFunction(HighValue):
 
         type_ = \
             LLVM_Type.function(
-                high.type_from_any(return_type),
-                map(high.type_from_any, argument_types),
+                qy.type_from_any(return_type),
+                map(qy.type_from_any, argument_types),
                 )
-        function = high.module.add_function(type_, name)
+        function = Qy.get_active().module.add_function(type_, name)
 
         if internal:
             function.linkage = llvm.core.LINKAGE_INTERNAL
 
-        return HighFunction(function)
+        return Function(function)
 
     @staticmethod
     def define(return_type = LLVM_Type.void(), argument_types = (), name = None, internal = True):
@@ -1545,11 +1539,11 @@ class HighFunction(HighValue):
             else:
                 function_name = name
 
-            function = HighFunction.new_named(function_name, return_type, argument_types, internal = internal)
+            function = Function.new_named(function_name, return_type, argument_types, internal = internal)
 
             entry = function._value.append_basic_block("entry")
 
-            with high.this_builder(LLVM_Builder.new(entry)) as builder:
+            with qy.this_builder(LLVM_Builder.new(entry)) as builder:
                 emit(*function.argument_values)
 
             return function
@@ -1564,11 +1558,11 @@ class HighFunction(HighValue):
 
         type_ = \
             LLVM_Type.function(
-                high.type_from_any(return_type),
-                map(high.type_from_any, argument_types),
+                qy.type_from_any(return_type),
+                map(qy.type_from_any, argument_types),
                 )
 
-        return HighFunction(LLVM_Constant.int(iptr_type, address).inttoptr(LLVM_Type.pointer(type_)))
+        return Function(LLVM_Constant.int(iptr_type, address).inttoptr(LLVM_Type.pointer(type_)))
 
     @staticmethod
     def intrinsic(intrinsic_id, qualifiers = ()):
@@ -1576,13 +1570,13 @@ class HighFunction(HighValue):
         Return an intrinsic function.
         """
 
-        qualifiers = map(high.type_from_any, qualifiers)
+        qualifiers = map(qy.type_from_any, qualifiers)
 
-        return HighFunction(LLVM_Function.intrinsic(high.module, intrinsic_id, qualifiers))
+        return Function(LLVM_Function.intrinsic(Qy.get_active().module, intrinsic_id, qualifiers))
 
-class HighObject(HighPointerValue):
+class Object(PointerValue):
     """
-    Higher-level interface to Python objects in LLVM.
+    Interact with Python objects from Qy.
     """
 
     def __call__(self, *arguments):
@@ -1590,27 +1584,27 @@ class HighObject(HighPointerValue):
         Emit a Python call.
         """
 
-        @HighFunction.define(
+        @Function.define(
             LLVM_Type.void(),
-            [high.object_ptr_type] + [a.type_ for a in arguments],
+            [qy.object_ptr_type] + [a.type_ for a in arguments],
             )
         def invoke_python(*inner_arguments):
             from qy import constant_pointer_to
 
             call_object = \
-                HighFunction.named(
+                Function.named(
                     "PyObject_CallObject",
                     object_ptr_type,
                     [object_ptr_type, object_ptr_type],
                     )
 
-            argument_tuple = high.py_tuple(*inner_arguments[1:])
+            argument_tuple = qy.py_tuple(*inner_arguments[1:])
             call_result    = call_object(inner_arguments[0], argument_tuple)
 
-            high.py_dec_ref(argument_tuple)
-            high.py_check_null(call_result)
-            high.py_dec_ref(call_result)
-            high.return_()
+            qy.py_dec_ref(argument_tuple)
+            qy.py_check_null(call_result)
+            qy.py_dec_ref(call_result)
+            qy.return_()
 
         invoke_python(self, *arguments)
 
@@ -1619,42 +1613,47 @@ class HighObject(HighPointerValue):
         Get an attribute.
         """
 
-        object_ptr_type = high.object_ptr_type
+        object_ptr_type = qy.object_ptr_type
 
         get_attr = \
-            HighFunction.named(
+            Function.named(
                 "PyObject_GetAttrString",
                 object_ptr_type,
                 [object_ptr_type, LLVM_Type.pointer(LLVM_Type.int(8))],
                 )
 
-        result = get_attr(self, high.string_literal(name))
+        result = get_attr(self, qy.string_literal(name))
 
-        high.py_check_null(result)
+        qy.py_check_null(result)
 
-        return HighObject(result._value)
+        return Object(result._value)
 
     @staticmethod
     def from_object(instance):
         """
-        Build a HighObject for a Python object.
+        Build a Object for a Python object.
         """
 
         from qy import constant_pointer_to
 
-        return HighObject(constant_pointer_to(instance, high.object_ptr_type))
+        return Object(constant_pointer_to(instance, qy.object_ptr_type))
 
     @staticmethod
     def from_string(string):
         """
-        Build a HighObject for a Python string object.
+        Build a Object for a Python string object.
         """
 
-        py_from_string = HighFunction.named("PyString_FromString", object_ptr_type, [Type.pointer(Type.int(8))])
+        py_from_string = \
+            Function.named(
+                "PyString_FromString",
+                object_ptr_type,
+                [LLVM_Type.pointer(LLVM_Type.int(8))],
+                )
 
-        return HighObject(py_from_string(high.string_literal(string))._value)
+        return Object(py_from_string(qy.string_literal(string))._value)
 
-class HighPyScope(object):
+class ObjectScope(object):
     # XXX unimplemented; we're leaking Python objects
     pass
 
