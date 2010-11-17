@@ -236,9 +236,9 @@ class Qy(object):
         condition  = self.value_from_any(condition).cast_to(LLVM_Type.int(1))
         then       = self.function.append_basic_block("then")
         else_      = self.function.append_basic_block("else")
-        merge      = self.function.append_basic_block("merge")
 
         def decorator(emit_branch):
+            merge   = None
             builder = self.builder
 
             builder.cbranch(condition.low, then, else_)
@@ -247,6 +247,9 @@ class Qy(object):
             emit_branch(True)
 
             if not self.block_terminated:
+                if merge is None:
+                    merge = self.function.append_basic_block("merge")
+
                 builder.branch(merge)
 
             builder.position_at_end(else_)
@@ -254,9 +257,13 @@ class Qy(object):
             emit_branch(False)
 
             if not self.block_terminated:
+                if merge is None:
+                    merge = self.function.append_basic_block("merge")
+
                 builder.branch(merge)
 
-            builder.position_at_end(merge)
+            if merge is not None:
+                builder.position_at_end(merge)
 
         return decorator
 
@@ -589,7 +596,7 @@ class Qy(object):
         if value is None:
             self.builder.ret_void()
         else:
-            self.builder.ret(value._value)
+            self.builder.ret(self.value_from_any(value)._value)
 
     @contextmanager
     def active(self):
