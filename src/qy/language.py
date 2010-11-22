@@ -1176,6 +1176,17 @@ class IntegerValue(Value):
 
         return IntegerValue(get_qy().builder.sdiv(self._value, other._value))
 
+    def __mod__(self, other):
+        """
+        Return the remainder of a division.
+
+        Note that this operation performs C-style, not Python-style, modulo.
+        """
+
+        other = qy.value_from_any(other).cast_to(self.type_)
+
+        return IntegerValue(get_qy().builder.srem(self._value, other._value))
+
     def cast_to(self, type_, name = ""):
         """
         Cast this value to the specified type.
@@ -1590,6 +1601,8 @@ class Object(PointerValue):
         """
         Emit a Python call.
         """
+
+        arguments = map(qy.value_from_any, arguments)
 
         @Function.define(
             LLVM_Type.void(),

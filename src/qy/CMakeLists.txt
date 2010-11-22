@@ -22,6 +22,7 @@ install(
         lowloop.py
         module.py
         statements.py
+        math.py
     DESTINATION lib/qy
     )
 

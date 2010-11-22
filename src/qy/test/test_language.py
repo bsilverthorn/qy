@@ -396,3 +396,20 @@ def test_qy_exp():
         def _(v0_py):
             assert_equal(v0_py, math.e)
 
+def test_qy_integer_mod():
+    """
+    Test the integer modulo operation.
+    """
+
+    @emit_and_execute()
+    def _():
+        x = qy.value_from_any(3)
+        y = qy.value_from_any(5)
+        z = qy.value_from_any(-2)
+
+        @qy.python(x % y, y % z, z % y)
+        def _(a_py, b_py, c_py):
+            assert_equal(a_py, 3)
+            assert_equal(b_py, 2)
+            assert_equal(c_py, -2)
+
