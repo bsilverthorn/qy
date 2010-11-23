@@ -396,6 +396,21 @@ def test_qy_exp():
         def _(v0_py):
             assert_equal(v0_py, math.e)
 
+def test_qy_real_neg():
+    """
+    Test the floating-point negation operation.
+    """
+
+    @emit_and_execute()
+    def _():
+        x = qy.value_from_any(3)
+        y = qy.value_from_any(-5)
+
+        @qy.python(-x, -y)
+        def _(a_py, b_py)
+            assert_equal(a_py, -3)
+            assert_equal(b_py, 5)
+
 def test_qy_integer_mod():
     """
     Test the integer modulo operation.

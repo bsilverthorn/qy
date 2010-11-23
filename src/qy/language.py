@@ -499,6 +499,7 @@ class Qy(object):
         Print arguments via to-Python conversion.
         """
 
+        arguments       = map(self.value_from_any, arguments)
         object_ptr_type = self.object_ptr_type
         py_format       = Function.named("PyString_Format", object_ptr_type, [object_ptr_type] * 2)
         py_from_string  = Function.named("PyString_FromString", object_ptr_type, [LLVM_Type.pointer(LLVM_Type.int(8))])
@@ -718,7 +719,7 @@ class Value(object):
             raise TypeError("Value constructor requires an llvm.core.Value")
         elif self.kind is not None and value.type.kind != self.kind:
             raise TypeError(
-                "cannot construct an %s instance from a %s value",
+                "cannot covariable's nstruct an %s instance from a %s value",
                 type(self).__name__,
                 type(value).__name,
                 )
@@ -739,250 +740,107 @@ class Value(object):
 
         return "Value.from_low(%s)" % repr(self._value)
 
-    def __lt__(self, other):
+    def __radd__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "+" operator.
         """
 
-        raise TypeError("%s value does not have operator < defined" % type(self).__name__)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-    def __le__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator <= defined" % type(self).__name__)
-
-    def __gt__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator > defined" % type(self).__name__)
-
-    def __ge__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator >= defined" % type(self).__name__)
-
-    def __eq__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator == defined" % type(self).__name__)
-
-    def __ne__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator != defined" % type(self).__name__)
-
-    def __add__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator + defined" % type(self).__name__)
-
-    def __sub__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator - defined" % type(self).__name__)
-
-    def __mul__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator * defined" % type(self).__name__)
-
-    def __div__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator / defined" % type(self).__name__)
-
-    def __floordiv__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator // defined" % type(self).__name__)
-
-    def __mod__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator % defined" % type(self).__name__)
-
-    def __divmod__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator divmod() defined" % type(self).__name__)
-
-    def __pow__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator ** defined" % type(self).__name__)
+        return other + self
 
-    def __and__(self, other):
+    def __rsub__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "-" operator.
         """
 
-        raise TypeError("%s value does not have operator & defined" % type(self).__name__)
-
-    def __xor__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator ^ defined" % type(self).__name__)
-
-    def __or__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator | defined" % type(self).__name__)
-
-    def __lshift__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator << defined" % type(self).__name__)
+        return other - self
 
-    def __rshift__(self, other):
+    def __rmul__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "*" operator.
         """
 
-        raise TypeError("%s value does not have operator >> defined" % type(self).__name__)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-    def __neg__(self):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        return other * self
 
-        raise TypeError("%s value does not have unary operator - defined" % type(self).__name__)
-
-    def __pos__(self):
+    def __rdiv__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "/" operator.
         """
 
-        raise TypeError("%s value does not have unary operator + defined" % type(self).__name__)
-
-    def __abs__(self):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator abs() defined" % type(self).__name__)
+        return other / self
 
-    def __invert__(self):
+    def __rmod__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "%" operator.
         """
-
-        raise TypeError("%s value does not have operator ~= defined" % type(self).__name__)
 
-    def __iadd__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator += defined" % type(self).__name__)
+        return other % self
 
-    def __isub__(self, other):
+    def __rdivmod__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "divmod" operator.
         """
-
-        raise TypeError("%s value does not have operator -= defined" % type(self).__name__)
 
-    def __imul__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator *= defined" % type(self).__name__)
+        return divmod(other, self)
 
-    def __idiv__(self, other):
+    def __rpow__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "**" operator.
         """
 
-        raise TypeError("%s value does not have operator /= defined" % type(self).__name__)
+        raise TypeError("%s value does not have right-operator ** defined" % type(self).__name__)
 
-    def __ifloordiv__(self, other):
+    def __rlshift__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "<<" operator.
         """
 
-        raise TypeError("%s value does not have operator //= defined" % type(self).__name__)
+        raise TypeError("%s value does not have right-operator << defined" % type(self).__name__)
 
-    def __imod__(self, other):
+    def __rrshift__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the ">>" operator.
         """
 
-        raise TypeError("%s value does not have operator %= defined" % type(self).__name__)
+        raise TypeError("%s value does not have right-operator >> defined" % type(self).__name__)
 
-    def __ipow__(self, other):
+    def __rand__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "&" operator.
         """
 
-        raise TypeError("%s value does not have operator **= defined" % type(self).__name__)
-
-    def __iand__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator &= defined" % type(self).__name__)
+        return other & self
 
-    def __ixor__(self, other):
+    def __rxor__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "^" operator.
         """
 
-        raise TypeError("%s value does not have operator ^= defined" % type(self).__name__)
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-    def __ior__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
-
-        raise TypeError("%s value does not have operator |= defined" % type(self).__name__)
+        return other ^ self
 
-    def __ilshift__(self, other):
+    def __ror__(self, other):
         """
-        Explicitly fail for generically-typed values.
+        Apply the "|" operator.
         """
 
-        raise TypeError("%s value does not have operator <<= defined" % type(self).__name__)
-
-    def __irshift__(self, other):
-        """
-        Explicitly fail for generically-typed values.
-        """
+        other = qy.value_from_any(other).cast_to(self.type_)
 
-        raise TypeError("%s value does not have operator >>= defined" % type(self).__name__)
+        return other | self
 
     def store(self, pointer):
         """
@@ -1187,6 +1045,33 @@ class IntegerValue(Value):
 
         return IntegerValue(get_qy().builder.srem(self._value, other._value))
 
+    def __and__(self, other):
+        """
+        Return the result of a bitwise and.
+        """
+
+        other = qy.value_from_any(other).cast_to(self.type_)
+
+        return IntegerValue(get_qy().builder.and_(self._value, other._value))
+
+    def __xor__(self, other):
+        """
+        Return the result of a bitwise xor.
+        """
+
+        other = qy.value_from_any(other).cast_to(self.type_)
+
+        return IntegerValue(get_qy().builder.xor(self._value, other._value))
+
+    def __or__(self, other):
+        """
+        Return the result of a bitwise or.
+        """
+
+        other = qy.value_from_any(other).cast_to(self.type_)
+
+        return IntegerValue(get_qy().builder.or_(self._value, other._value))
+
     def cast_to(self, type_, name = ""):
         """
         Cast this value to the specified type.
@@ -1240,9 +1125,23 @@ class RealValue(Value):
                     ),
                 )
 
-    def __ge__(self, other):
+    def __gt__(self, other):
         """
         Return the result of a greater-than comparison.
+        """
+
+        return \
+            Value.from_low(
+                get_qy().builder.fcmp(
+                    llvm.core.FCMP_OGT,
+                    self._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
+                    ),
+                )
+
+    def __ge__(self, other):
+        """
+        Return the result of a greater-than-or-equal comparison.
         """
 
         return \
@@ -1254,9 +1153,23 @@ class RealValue(Value):
                     ),
                 )
 
-    def __le__(self, other):
+    def __lt__(self, other):
         """
         Return the result of a less-than comparison.
+        """
+
+        return \
+            Value.from_low(
+                get_qy().builder.fcmp(
+                    llvm.core.FCMP_OLT,
+                    self._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
+                    ),
+                )
+
+    def __le__(self, other):
+        """
+        Return the result of a less-than-or-equal comparison.
         """
 
         return \
@@ -1267,6 +1180,13 @@ class RealValue(Value):
                     qy.value_from_any(other).cast_to(self.type_)._value,
                     ),
                 )
+
+    def __neg__(self):
+        """
+        Return the result of a negation.
+        """
+
+        return self * -1.0
 
     def __add__(self, other):
         """
@@ -1674,6 +1594,364 @@ class Object(PointerValue):
         return Object(py_from_string(qy.string_literal(string))._value)
 
 class ObjectScope(object):
+    """
+    Define the scope of allocated Python objects.
+    """
+
     # XXX unimplemented; we're leaking Python objects
-    pass
+
+class Variable(object):
+    """
+    Mutable value.
+    """
+
+    def __init__(self, type_):
+        """
+        Initialize.
+        """
+
+        self._location = qy.stack_allocate(type_)
+
+    def __lt__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() < other
+
+    def __le__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() <= other
+
+    def __gt__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() > other
+
+    def __ge__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() >= other
+
+    def __eq__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() == other
+
+    def __ne__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() != other
+
+    def __add__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() + other
+
+    def __sub__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() - other
+
+    def __mul__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() * other
+
+    def __div__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() / other
+
+    def __floordiv__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() // other
+
+    def __mod__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() % other
+
+    def __divmod__(self, other):
+        """
+        XXX.
+        """
+
+        return divmod(self._location.load(), other)
+
+    def __pow__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() ** other
+
+    def __and__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() & other
+
+    def __xor__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() ^ other
+
+    def __or__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() | other
+
+    def __lshift__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() << other
+
+    def __rshift__(self, other):
+        """
+        XXX.
+        """
+
+        return self._location.load() >> other
+
+    def __neg__(self):
+        """
+        XXX.
+        """
+
+        return -self._location.load()
+
+    def __pos__(self):
+        """
+        XXX.
+        """
+
+        return +self._location.load()
+
+    def __abs__(self):
+        """
+        XXX.
+        """
+
+        return abs(self._location.load())
+
+    def __invert__(self):
+        """
+        XXX.
+        """
+
+        return ~self._location.load()
+
+    def __radd__(self, other):
+        """
+        Return other + self.
+        """
+
+        return other | self._location.load()
+
+    def __rsub__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rmul__(self, other):
+        """
+        """
+
+        return other | self._location.load()
+
+    def __rdiv__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rmod__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rdivmod__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rpow__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rlshift__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rrshift__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rand__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __rxor__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __ror__(self, other):
+        """
+        XXX.
+        """
+
+        return other | self._location.load()
+
+    def __iadd__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self + other)
+
+    def __isub__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self - other)
+
+    def __imul__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self * other)
+
+    def __idiv__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self / other)
+
+    def __ifloordiv__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self // other)
+
+    def __imod__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self % other)
+
+    def __ipow__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self ** other)
+
+    def __iand__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self & other)
+
+    def __ixor__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self ^ other)
+
+    def __ior__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self | other)
+
+    def __ilshift__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self << other)
+
+    def __irshift__(self, other):
+        """
+        XXX.
+        """
+
+        self.set(self >> other)
+
+    def set(self, value):
+        """
+        Change the value of the variable.
+        """
+
+        qy.value_from_any(value).store(self._location)
+
+    @property
+    def value(self):
+        """
+        The current value.
+        """
+
+        return self._location.load()
 
