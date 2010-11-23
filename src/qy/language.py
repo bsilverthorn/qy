@@ -1188,6 +1188,13 @@ class RealValue(Value):
 
         return self * -1.0
 
+    def __abs__(self):
+        """
+        Return the absolute value of this value.
+        """
+
+        return qy.select(self > 0.0, self, -self)
+
     def __add__(self, other):
         """
         Return the result of an addition.
@@ -1947,6 +1954,8 @@ class Variable(object):
 
         qy.value_from_any(value).store(self._location)
 
+        return self
+
     @property
     def value(self):
         """
@@ -1954,4 +1963,14 @@ class Variable(object):
         """
 
         return self._location.load()
+
+    @staticmethod
+    def set_to(value):
+        """
+        Return a new variable, initialized.
+        """
+
+        value = qy.value_from_any(value)
+
+        return Variable(value.type_).set(value)
 
