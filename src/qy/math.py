@@ -17,14 +17,9 @@ def ln_gamma(x):
     Compute the log of the gamma function.
     """
 
-    # XXX instead just cache the function object itself someplace
-
-    if "ln_gamma_d" in get_qy().module.global_variables:
-        ln_gamma_d = Function.get_named("ln_gamma_d")
-    else:
-        @Function.define(float, [float])
-        def ln_gamma_d(x_in):
-            _ln_gamma(x_in)
+    @Function.define_once(float, [float])
+    def ln_gamma_d(x_in):
+        _ln_gamma(x_in)
 
     return ln_gamma_d(x)
 
@@ -210,36 +205,28 @@ def ln_choose(n, m):
     Compute the log of the choose function.
     """
 
-    # XXX instead just cache the function object itself someplace
+    @Function.define_once(float, [float, float])
+    def ln_choose_d(n, m):
+        @qy.if_else((m == n) | (m == 0.0))
+        def _(then):
+            if then:
+                qy.return_(0.0)
+            else:
+                k = Variable(float)
 
-    if "ln_choose_d" in get_qy().module.global_variables:
-        ln_choose_d = Function.get_named("ln_choose_d")
-    else:
-        @Function.define(float, [float, float])
-        def ln_choose_d(n_in, m_in):
-            _ln_choose(n_in, m_in)
+                @qy.if_else(m * 2.0 > n)
+                def _(then):
+                    if then:
+                        k.set(n - m)
+                    else:
+                        k.set(m)
+
+                result =                         \
+                      ln_factorial(n)            \
+                    - ln_factorial(k.value)      \
+                    - ln_factorial(n - k.value)
+
+                qy.return_(result)
 
     return ln_choose_d(n, m)
-
-def _ln_choose(n, m):
-    @qy.if_else((m == n) | (m == 0.0))
-    def _(then):
-        if then:
-            qy.return_(0.0)
-        else:
-            k = Variable(float)
-
-            @qy.if_else(m * 2.0 > n)
-            def _(then):
-                if then:
-                    k.set(n - m)
-                else:
-                    k.set(m)
-
-            result =                         \
-                  ln_factorial(n)            \
-                - ln_factorial(k.value)      \
-                - ln_factorial(n - k.value)
-
-            qy.return_(result)
 

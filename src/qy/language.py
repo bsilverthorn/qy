@@ -92,6 +92,7 @@ class Qy(object):
         self._test_for_nan  = test_for_nan
         self._literals      = {}
         self._builder_stack = []
+        self._break_stack   = []
 
         # make Python-support declarations
         self._module.add_type_name("PyObjectPtr", LLVM_Type.pointer(LLVM_Type.struct([])))
@@ -126,6 +127,19 @@ class Qy(object):
         body_entry = main_body._value.append_basic_block("entry")
 
         self._builder_stack.append(LLVM_Builder.new(body_entry))
+
+        # XXX implement region-based memory deallocation
+        ## ensure that we have access to the APR
+        #from ctypes      import CDLL
+        #from ctypes.util import find_library
+
+        #CDLL(find_library("libapr-1"))
+
+        ## allocate the memory pool
+
+        ## emit the memory pool destructor
+
+        ## and register it with the module destructors
 
     def value_from_any(self, value):
         """
@@ -309,7 +323,11 @@ class Qy(object):
             # build the flesh block
             builder.position_at_end(flesh)
 
+            self._break_stack.append(leave)
+
             emit_body(Value.from_low(this_index))
+
+            self._break_stack.pop()
 
             this_index.add_incoming(
                 builder.add(this_index, LLVM_Constant.int(index_type, 1)),
@@ -549,9 +567,10 @@ class Qy(object):
 
     def heap_allocate(self, type_, count = 1):
         """
-        Stack-allocate and return a value.
+        Heap-allocate and return a value.
         """
 
+        # emit the allocation
         from qy import size_of_type
 
         type_  = self.type_from_any(type_)
@@ -559,6 +578,16 @@ class Qy(object):
         bytes_ = (self.value_from_any(count) * size_of_type(type_)).cast_to(long)
 
         return malloc(bytes_).cast_to(LLVM_Type.pointer(type_))
+
+    def heap_free(self, pointer):
+        """
+        Free a heap-allocated value.
+        """
+
+        u8p_type = LLVM_Type.pointer(LLVM_Type.int(8))
+        free     = Function.named("free", LLVM_Type.void(), [u8p_type])
+
+        free(pointer.cast_to(u8p_type))
 
     def stack_allocate(self, type_, initial = None, name = ""):
         """
@@ -598,6 +627,13 @@ class Qy(object):
             self.builder.ret_void()
         else:
             self.builder.ret(self.value_from_any(value)._value)
+
+    def break_(self):
+        """
+        Emit an exit from the innermost loop.
+        """
+
+        self.builder.branch(self._break_stack[-1])
 
     @contextmanager
     def active(self):
@@ -739,6 +775,167 @@ class Value(object):
         """
 
         return "Value.from_low(%s)" % repr(self._value)
+
+    def __lt__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __le__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __gt__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __ge__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __eq__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __ne__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __add__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __sub__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __mul__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __div__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __floordiv__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __mod__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __divmod__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __pow__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __and__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __xor__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __or__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __lshift__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __rshift__(self, other):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __neg__(self):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __pos__(self):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __abs__(self):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
+
+    def __invert__(self):
+        """
+        XXX.
+        """
+
+        raise TypeError("%s value does not define this operator" % type(self).__name__)
 
     def __radd__(self, other):
         """
@@ -970,9 +1167,23 @@ class IntegerValue(Value):
                     ),
                 )
 
-    def __ge__(self, other):
+    def __gt__(self, other):
         """
         Return the result of a greater-than comparison.
+        """
+
+        return \
+            Value.from_low(
+                get_qy().builder.icmp(
+                    llvm.core.ICMP_SGT,
+                    self._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
+                    ),
+                )
+
+    def __ge__(self, other):
+        """
+        Return the result of a greater-than-or-equal comparison.
         """
 
         return \
@@ -984,9 +1195,23 @@ class IntegerValue(Value):
                     ),
                 )
 
-    def __le__(self, other):
+    def __lt__(self, other):
         """
         Return the result of a less-than comparison.
+        """
+
+        return \
+            Value.from_low(
+                get_qy().builder.icmp(
+                    llvm.core.ICMP_SLT,
+                    self._value,
+                    qy.value_from_any(other).cast_to(self.type_)._value,
+                    ),
+                )
+
+    def __le__(self, other):
+        """
+        Return the result of a less-than-or-equal comparison.
         """
 
         return \
@@ -1468,7 +1693,7 @@ class Function(Value):
     @staticmethod
     def define(return_type = LLVM_Type.void(), argument_types = (), name = None, internal = True):
         """
-        Look up or create a named function.
+        Create a named function.
         """
 
         def decorator(emit):
@@ -1492,6 +1717,40 @@ class Function(Value):
                 emit(*function.argument_values)
 
             return function
+
+        return decorator
+    
+    @staticmethod
+    def define_once(return_type = LLVM_Type.void(), argument_types = (), name = None, internal = True):
+        """
+        Look up or create a named function.
+        """
+
+        def decorator(emit):
+            """
+            Look up or emit the function.
+            """
+
+            if name is None:
+                if emit.__name__ == "_":
+                    function_name = "function"
+                else:
+                    function_name = emit.__name__
+            else:
+                function_name = name
+
+            if function_name in get_qy().module.global_variables:
+                return Function.get_named(function_name)
+            else:
+                define_decorator =                       \
+                    Function.define(
+                        return_type    = return_type,
+                        argument_types = argument_types,
+                        name           = name,
+                        internal       = internal,
+                        )                                \
+
+                return define_decorator(emit)
 
         return decorator
 

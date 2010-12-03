@@ -25,9 +25,11 @@ names_to_wrap = [
     "py_printf",
     "py_check_null",
     "heap_allocate",
+    "heap_free",
     "stack_allocate",
     "assert_",
     "return_",
+    "break_",
     "this_builder",
     ]
 

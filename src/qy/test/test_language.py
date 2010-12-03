@@ -170,6 +170,28 @@ def test_qy_for_():
 
     assert_equal(iterations[0], count)
 
+def test_qy_break_():
+    """
+    Test the qy break_() statement.
+    """
+
+    count      = 64
+    iterations = [0]
+
+    @emit_and_execute()
+    def _():
+        @qy.for_(count * 2)
+        def _(i):
+            @qy.python()
+            def _():
+                iterations[0] += 1
+
+            @qy.if_(i == count - 1)
+            def _():
+                qy.break_()
+
+    assert_equal(iterations[0], count)
+
 def test_qy_object_basics():
     """
     Test basic operations on LLVM-wrapped Python objects.
@@ -407,7 +429,7 @@ def test_qy_real_neg():
         y = qy.value_from_any(-5)
 
         @qy.python(-x, -y)
-        def _(a_py, b_py)
+        def _(a_py, b_py):
             assert_equal(a_py, -3)
             assert_equal(b_py, 5)
 

@@ -60,29 +60,29 @@ def emit_and_execute(module_name = "", optimize = True):
 
         engine = ExecutionEngine.new(module)
 
-        if optimize:
-            manager = PassManager.new()
+        #if optimize:
+            #manager = PassManager.new()
 
-            manager.add(engine.target_data)
+            #manager.add(engine.target_data)
 
-            manager.add(llvm.passes.PASS_FUNCTION_INLINING)
-            manager.add(llvm.passes.PASS_PROMOTE_MEMORY_TO_REGISTER)
-            manager.add(llvm.passes.PASS_BASIC_ALIAS_ANALYSIS)
-            manager.add(llvm.passes.PASS_CONSTANT_PROPAGATION)
-            manager.add(llvm.passes.PASS_INSTRUCTION_COMBINING)
-            manager.add(llvm.passes.PASS_IND_VAR_SIMPLIFY)
-            manager.add(llvm.passes.PASS_GEP_SPLITTER)
-            manager.add(llvm.passes.PASS_LOOP_SIMPLIFY)
-            manager.add(llvm.passes.PASS_LICM)
-            manager.add(llvm.passes.PASS_LOOP_ROTATE)
-            manager.add(llvm.passes.PASS_LOOP_STRENGTH_REDUCE)
-            manager.add(llvm.passes.PASS_LOOP_UNROLL)
-            manager.add(llvm.passes.PASS_GVN)
-            manager.add(llvm.passes.PASS_DEAD_STORE_ELIMINATION)
-            manager.add(llvm.passes.PASS_DEAD_CODE_ELIMINATION)
-            manager.add(llvm.passes.PASS_CFG_SIMPLIFICATION)
+            #manager.add(llvm.passes.PASS_FUNCTION_INLINING)
+            #manager.add(llvm.passes.PASS_PROMOTE_MEMORY_TO_REGISTER)
+            #manager.add(llvm.passes.PASS_BASIC_ALIAS_ANALYSIS)
+            #manager.add(llvm.passes.PASS_CONSTANT_PROPAGATION)
+            #manager.add(llvm.passes.PASS_INSTRUCTION_COMBINING)
+            #manager.add(llvm.passes.PASS_IND_VAR_SIMPLIFY)
+            #manager.add(llvm.passes.PASS_GEP_SPLITTER)
+            #manager.add(llvm.passes.PASS_LOOP_SIMPLIFY)
+            #manager.add(llvm.passes.PASS_LICM)
+            #manager.add(llvm.passes.PASS_LOOP_ROTATE)
+            #manager.add(llvm.passes.PASS_LOOP_STRENGTH_REDUCE)
+            #manager.add(llvm.passes.PASS_LOOP_UNROLL)
+            #manager.add(llvm.passes.PASS_GVN)
+            #manager.add(llvm.passes.PASS_DEAD_STORE_ELIMINATION)
+            #manager.add(llvm.passes.PASS_DEAD_CODE_ELIMINATION)
+            #manager.add(llvm.passes.PASS_CFG_SIMPLIFICATION)
 
-            manager.run(module)
+            #manager.run(module)
 
         # execute it
         engine.run_function(this.main, [])
