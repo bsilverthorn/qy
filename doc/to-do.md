@@ -1,29 +1,43 @@
 Stuff to do for Qy
 ==================
 
+Roadmaps
+--------
+
+### to version 0.1
+
+(1) first reorg: split out the value classes
+(2) improve the StridedArray integration
+(3) build the type system
+(4) write tutorial documentation on github
+
+### to version 0.2
+
+(1) set up automated benchmarks with versus-numpy support
+(2) pick and meet a code coverage target
+(3) set up continuous integration tests
+(4) generate reference documentation from source
+
 Miscellaneous
 -------------
 
-* are module being entirely cleaned up?
+### Bulleted
 
-Major efforts
--------------
-
+* are modules being entirely cleaned up?
+* support StridedArray transport *into* Python
 * build concise array operations; analogues to numpy operations
 
-Numeric coercion rules
-----------------------
+### Numeric coercion rules
 
 * specify sane numeric coercion rules
 * implement sane numeric coercion rules
 * document sane numeric coercion rules
 * unit-test sane numeric coercion rules
 
-One (attractive) option is to disallow numeric coercion exception *from*
-Python constants.
+One (attractive) option is to disallow numeric coercion except *from* Python
+constants.
 
-An alternate if-then-else syntax?
----------------------------------
+### An alternate if-then-else syntax?
 
     @qy.if_()
     def _():
@@ -42,8 +56,7 @@ An alternate if-then-else syntax?
     def _():
         # ...
 
-Region-based exceptional memory deallocation
---------------------------------------------
+### Region-based exceptional memory deallocation
 
 Since exceptions thrown from Python give Qy code no opportunity to perform
 cleanup, if an exception occurs, we need to automatically deallocate any memory
