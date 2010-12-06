@@ -128,19 +128,6 @@ class Qy(object):
 
         self._builder_stack.append(LLVM_Builder.new(body_entry))
 
-        # XXX implement region-based memory deallocation
-        ## ensure that we have access to the APR
-        #from ctypes      import CDLL
-        #from ctypes.util import find_library
-
-        #CDLL(find_library("libapr-1"))
-
-        ## allocate the memory pool
-
-        ## emit the memory pool destructor
-
-        ## and register it with the module destructors
-
     def value_from_any(self, value):
         """
         Return a wrapping value.
