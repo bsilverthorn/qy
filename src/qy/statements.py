@@ -4,7 +4,6 @@
 
 names_to_wrap = [
     "value_from_any",
-    "type_from_any",
     "string_literal",
     "if_",
     "if_else",

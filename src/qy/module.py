@@ -31,6 +31,45 @@ def constant_pointer_to(object_, type_):
 
     return constant_pointer(id(object_), type_)
 
+def build_engine(module, optimize = True):
+    """
+    Build an execution environment for a module.
+    """
+
+    module.verify()
+
+    from llvm.ee import ExecutionEngine
+
+    engine = ExecutionEngine.new(module)
+
+    if optimize:
+        from llvm.passes import PassManager
+
+        manager = PassManager.new()
+
+        manager.add(engine.target_data)
+
+        manager.add(llvm.passes.PASS_FUNCTION_INLINING)
+        manager.add(llvm.passes.PASS_PROMOTE_MEMORY_TO_REGISTER)
+        manager.add(llvm.passes.PASS_BASIC_ALIAS_ANALYSIS)
+        manager.add(llvm.passes.PASS_CONSTANT_PROPAGATION)
+        manager.add(llvm.passes.PASS_INSTRUCTION_COMBINING)
+        manager.add(llvm.passes.PASS_IND_VAR_SIMPLIFY)
+        manager.add(llvm.passes.PASS_GEP_SPLITTER)
+        manager.add(llvm.passes.PASS_LOOP_SIMPLIFY)
+        manager.add(llvm.passes.PASS_LICM)
+        manager.add(llvm.passes.PASS_LOOP_ROTATE)
+        manager.add(llvm.passes.PASS_LOOP_STRENGTH_REDUCE)
+        manager.add(llvm.passes.PASS_LOOP_UNROLL)
+        manager.add(llvm.passes.PASS_GVN)
+        manager.add(llvm.passes.PASS_DEAD_STORE_ELIMINATION)
+        manager.add(llvm.passes.PASS_DEAD_CODE_ELIMINATION)
+        manager.add(llvm.passes.PASS_CFG_SIMPLIFICATION)
+
+        manager.run(module)
+
+    return engine
+
 def emit_and_execute(module_name = "", optimize = True):
     """
     Prepare for, emit, and run some LLVM IR.
@@ -38,53 +77,20 @@ def emit_and_execute(module_name = "", optimize = True):
 
     from qy import Qy
 
-    def decorator(emit):
+    def decorator(emitter):
         """
         Build an LLVM module, then execute it.
         """
 
-        # construct the module
+        from qy.support import raise_if_set
+
         with Qy().active() as this:
-            emit()
+            emitter()
 
             this.return_()
 
-        module = this.module
+        engine = build_engine(this.module)
 
-        module.verify()
-
-        # optimize it
-        from llvm.ee     import ExecutionEngine
-        from llvm.passes import PassManager
-        from qy.support  import raise_if_set
-
-        engine = ExecutionEngine.new(module)
-
-        #if optimize:
-            #manager = PassManager.new()
-
-            #manager.add(engine.target_data)
-
-            #manager.add(llvm.passes.PASS_FUNCTION_INLINING)
-            #manager.add(llvm.passes.PASS_PROMOTE_MEMORY_TO_REGISTER)
-            #manager.add(llvm.passes.PASS_BASIC_ALIAS_ANALYSIS)
-            #manager.add(llvm.passes.PASS_CONSTANT_PROPAGATION)
-            #manager.add(llvm.passes.PASS_INSTRUCTION_COMBINING)
-            #manager.add(llvm.passes.PASS_IND_VAR_SIMPLIFY)
-            #manager.add(llvm.passes.PASS_GEP_SPLITTER)
-            #manager.add(llvm.passes.PASS_LOOP_SIMPLIFY)
-            #manager.add(llvm.passes.PASS_LICM)
-            #manager.add(llvm.passes.PASS_LOOP_ROTATE)
-            #manager.add(llvm.passes.PASS_LOOP_STRENGTH_REDUCE)
-            #manager.add(llvm.passes.PASS_LOOP_UNROLL)
-            #manager.add(llvm.passes.PASS_GVN)
-            #manager.add(llvm.passes.PASS_DEAD_STORE_ELIMINATION)
-            #manager.add(llvm.passes.PASS_DEAD_CODE_ELIMINATION)
-            #manager.add(llvm.passes.PASS_CFG_SIMPLIFICATION)
-
-            #manager.run(module)
-
-        # execute it
         engine.run_function(this.main, [])
 
         raise_if_set()

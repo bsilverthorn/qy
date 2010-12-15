@@ -72,6 +72,53 @@ def get_qy():
 
     return Qy.get_active()
 
+def type_from_any(some_type):
+    """
+    Return an LLVM type from some kind of type.
+    """
+
+    # XXX support for other ctypes
+
+    from ctypes import sizeof
+    from qy     import type_from_dtype
+
+    ctype_integer_types = \
+        set([
+            ctypes.c_bool,
+            ctypes.c_byte,
+            ctypes.c_ubyte,
+            ctypes.c_char,
+            ctypes.c_wchar,
+            ctypes.c_short,
+            ctypes.c_ushort,
+            ctypes.c_long,
+            ctypes.c_longlong,
+            ctypes.c_ulong,
+            ctypes.c_ulonglong,
+            ctypes.c_int8,
+            ctypes.c_int16,
+            ctypes.c_int32,
+            ctypes.c_int64,
+            ctypes.c_uint8,
+            ctypes.c_uint16,
+            ctypes.c_uint32,
+            ctypes.c_uint64,
+            ctypes.c_size_t,
+            ])
+
+    if isinstance(some_type, type):
+        return type_from_dtype(numpy.dtype(some_type))
+    elif isinstance(some_type, numpy.dtype):
+        return type_from_dtype(some_type)
+    elif isinstance(some_type, LLVM_Type):
+        return some_type
+    elif some_type in ctype_integer_types:
+        return LLVM_Type.int(sizeof(some_type) * 8)
+    else:
+        raise TypeError("cannot build type from \"%s\" instance" % type(some_type))
+
+_type_from_any = type_from_any
+
 class Qy(object):
     """
     The Qy language, configured.
@@ -79,7 +126,14 @@ class Qy(object):
 
     _language_stack = []
 
-    def __init__(self, module = None, test_for_nan = False):
+    def __init__(
+        self                             ,
+        return_type    = LLVM_Type.void(),
+        argument_types = ()              ,
+        module         = None            ,
+        test_for_nan   = False           ,
+        default_return = None            ,
+        ):
         """
         Initialize.
         """
@@ -99,10 +153,19 @@ class Qy(object):
 
         with self.active():
             # add a main
-            main_body = Function.new_named("main_body")
+            self._main_body = \
+                Function.new_named(
+                    "main_body"                    ,
+                    return_type    = return_type   ,
+                    argument_types = argument_types,
+                    )
 
-            @Function.define(internal = False)
-            def main():
+            @Function.define(
+                return_type    = return_type   ,
+                argument_types = argument_types,
+                internal       = False         ,
+                )
+            def main(*args):
                 """
                 The true entry point.
                 """
@@ -120,11 +183,21 @@ class Qy(object):
                 context.linkage     = llvm.core.LINKAGE_INTERNAL
                 context.initializer = LLVM_Constant.null(context_type)
 
-                self.if_(setjmp(context) == 0)(main_body)
-                self.return_()
+                @self.if_else(setjmp(context) == 0)
+                def _(then):
+                    if then:
+                        if default_return is None:
+                            self._main_body(*args)
+                            self.return_()
+                        else:
+                            self.return_(self._main_body(*args))
+                    elif default_return is None:
+                        self.return_()
+                    else:
+                        self.return_(default_return)
 
         # prepare for user code
-        body_entry = main_body._value.append_basic_block("entry")
+        body_entry = self._main_body._value.append_basic_block("entry")
 
         self._builder_stack.append(LLVM_Builder.new(body_entry))
 
@@ -147,51 +220,6 @@ class Qy(object):
         """
 
         return Value.from_any(value)
-
-    def type_from_any(self, some_type):
-        """
-        Return an LLVM type from some kind of type.
-        """
-
-        # XXX support for other ctypes
-
-        from ctypes import sizeof
-        from qy     import type_from_dtype
-
-        ctype_integer_types = \
-            set([
-                ctypes.c_bool,
-                ctypes.c_byte,
-                ctypes.c_ubyte,
-                ctypes.c_char,
-                ctypes.c_wchar,
-                ctypes.c_short,
-                ctypes.c_ushort,
-                ctypes.c_long,
-                ctypes.c_longlong,
-                ctypes.c_ulong,
-                ctypes.c_ulonglong,
-                ctypes.c_int8,
-                ctypes.c_int16,
-                ctypes.c_int32,
-                ctypes.c_int64,
-                ctypes.c_uint8,
-                ctypes.c_uint16,
-                ctypes.c_uint32,
-                ctypes.c_uint64,
-                ctypes.c_size_t,
-                ])
-
-        if isinstance(some_type, type):
-            return type_from_dtype(numpy.dtype(some_type))
-        elif isinstance(some_type, numpy.dtype):
-            return type_from_dtype(some_type)
-        elif isinstance(some_type, LLVM_Type):
-            return some_type
-        elif some_type in ctype_integer_types:
-            return LLVM_Type.int(sizeof(some_type) * 8)
-        else:
-            raise TypeError("cannot build type from \"%s\" instance" % type(some_type))
 
     def string_literal(self, string):
         """
@@ -573,7 +601,7 @@ class Qy(object):
         # emit the allocation
         from qy import size_of_type
 
-        type_  = self.type_from_any(type_)
+        type_  = type_from_any(type_)
         malloc = Function.named("malloc", LLVM_Type.pointer(LLVM_Type.int(8)), [long])
         bytes_ = (self.value_from_any(count) * size_of_type(type_)).cast_to(long)
 
@@ -594,7 +622,7 @@ class Qy(object):
         Stack-allocate and return a value.
         """
 
-        allocated = Value.from_low(self.builder.alloca(self.type_from_any(type_), name))
+        allocated = Value.from_low(self.builder.alloca(type_from_any(type_), name))
 
         if initial is not None:
             self.value_from_any(initial).store(allocated)
@@ -634,6 +662,10 @@ class Qy(object):
         """
 
         self.builder.branch(self._break_stack[-1])
+
+    def type_from_any(self, some_type):
+
+        return _type_from_any(some_type)
 
     @contextmanager
     def active(self):
@@ -708,6 +740,14 @@ class Qy(object):
         return                                                  \
             self.basic_block.instructions                       \
             and self.basic_block.instructions[-1].is_terminator
+
+    @property
+    def main_body(self):
+        """
+        Return the entry point body.
+        """
+
+        return self._main_body
 
     @property
     def test_for_nan(self):
@@ -1304,7 +1344,7 @@ class IntegerValue(Value):
 
         # XXX cleanly handle signedness somehow (explicit "signed" qy value?)
 
-        type_     = qy.type_from_any(type_)
+        type_     = type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_DOUBLE:
@@ -1494,7 +1534,7 @@ class RealValue(Value):
 
         # XXX support more casts
 
-        type_     = qy.type_from_any(type_)
+        type_     = type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_DOUBLE:
@@ -1576,7 +1616,7 @@ class PointerValue(Value):
 
         # XXX support more casts
 
-        type_     = qy.type_from_any(type_)
+        type_     = type_from_any(type_)
         low_value = None
 
         if type_.kind == llvm.core.TYPE_POINTER:
@@ -1658,8 +1698,8 @@ class Function(Value):
 
         type_ = \
             LLVM_Type.function(
-                qy.type_from_any(return_type),
-                map(qy.type_from_any, argument_types),
+                type_from_any(return_type),
+                map(type_from_any, argument_types),
                 )
 
         return Function(Qy.get_active().module.get_or_insert_function(type_, name))
@@ -1680,8 +1720,8 @@ class Function(Value):
 
         type_ = \
             LLVM_Type.function(
-                qy.type_from_any(return_type),
-                map(qy.type_from_any, argument_types),
+                type_from_any(return_type),
+                map(type_from_any, argument_types),
                 )
         function = Qy.get_active().module.add_function(type_, name)
 
@@ -1762,8 +1802,8 @@ class Function(Value):
 
         type_ = \
             LLVM_Type.function(
-                qy.type_from_any(return_type),
-                map(qy.type_from_any, argument_types),
+                type_from_any(return_type),
+                map(type_from_any, argument_types),
                 )
 
         return Function(LLVM_Constant.int(iptr_type, address).inttoptr(LLVM_Type.pointer(type_)))
@@ -1774,7 +1814,7 @@ class Function(Value):
         Return an intrinsic function.
         """
 
-        qualifiers = map(qy.type_from_any, qualifiers)
+        qualifiers = map(type_from_any, qualifiers)
 
         return Function(LLVM_Function.intrinsic(Qy.get_active().module, intrinsic_id, qualifiers))
 
