@@ -23,6 +23,7 @@ install(
         module.py
         statements.py
         math.py
+        llvm.py
     DESTINATION lib/qy
     )
 
@@ -30,5 +31,6 @@ install(
 # descend
 #
 
+add_subdirectory(values)
 add_subdirectory(test)
 

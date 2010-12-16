@@ -4,14 +4,8 @@
 
 import ctypes
 import numpy
-import llvm.core
 import qy
-
-from llvm.core import (
-    Type     as LLVM_Type,
-    Constant as LLVM_Constant,
-    )
-from qy import iptr_type
+import qy.llvm as llvm
 
 def semicast(*arrays):
     """
@@ -138,10 +132,10 @@ def get_strided_type(element_type, shape, strides):
                 raise ValueError("array stride too small")
             else:
                 return (
-                    LLVM_Type.array(
-                        LLVM_Type.packed_struct([
+                    llvm.Type.array(
+                        llvm.Type.packed_struct([
                             inner_type,
-                            LLVM_Type.array(LLVM_Type.int(8), strides[0] - inner_size),
+                            llvm.Type.array(llvm.Type.int(8), strides[0] - inner_size),
                             ]),
                         shape[0],
                         ),
@@ -215,7 +209,7 @@ class StridedArray(object):
         # XXX need to include axes which may have emerged
         # XXX need some general clarification of the StridedArray model?
 
-        simple_data = self._strided_data.cast_to(LLVM_Type.pointer(self._element_type))
+        simple_data = self._strided_data.cast_to(llvm.Type.pointer(self._element_type))
         inner_data  = simple_data.gep(*indices)
 
         return StridedArray.from_raw(inner_data, self._shape, self._strides)
@@ -278,7 +272,7 @@ class StridedArray(object):
             strides = map(int, strides)
 
         (strided_type, _) = get_strided_type(data.type_.pointee, shape, strides)
-        strided_data      = data.cast_to(LLVM_Type.pointer(strided_type))
+        strided_data      = data.cast_to(llvm.Type.pointer(strided_type))
 
         return StridedArray(strided_data, shape, strides, data.type_.pointee)
 
@@ -294,7 +288,7 @@ class StridedArray(object):
 
         type_         = type_from_dtype(ndarray.dtype)
         (location, _) = ndarray.__array_interface__["data"]
-        data          = LLVM_Constant.int(iptr_type, location).inttoptr(LLVM_Type.pointer(type_))
+        data          = llvm.Constant.int(iptr_type, location).inttoptr(llvm.Type.pointer(type_))
 
         return StridedArray.from_raw(qy.value_from_any(data), ndarray.shape, ndarray.strides)
 

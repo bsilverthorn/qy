@@ -3,24 +3,18 @@
 """
 
 import ctypes
+import contextlib
 import numpy
-import llvm.core
-import llvm.passes
+import qy.llvm as llvm
 
-from llvm.core  import (
-    Type     as LLVM_Type,
-    Constant as LLVM_Constant,
-    )
-from contextlib import contextmanager
-
-iptr_type = LLVM_Type.int(ctypes.sizeof(ctypes.c_void_p) * 8)
+iptr_type = llvm.Type.int(ctypes.sizeof(ctypes.c_void_p) * 8)
 
 def constant_pointer(address, type_):
     """
     Return an LLVM pointer constant from an address.
     """
 
-    return LLVM_Constant.int(iptr_type, address).inttoptr(type_)
+    return llvm.Constant.int(iptr_type, address).inttoptr(type_)
 
 def constant_pointer_to(object_, type_):
     """
@@ -54,14 +48,10 @@ def emit_and_execute(module_name = "", optimize = True):
         module.verify()
 
         # optimize it
-        from llvm.ee     import ExecutionEngine
-        from llvm.passes import PassManager
-        from qy.support  import raise_if_set
-
-        engine = ExecutionEngine.new(module)
+        engine = llvm.ExecutionEngine.new(module)
 
         #if optimize:
-            #manager = PassManager.new()
+            #manager = llvm.PassManager.new()
 
             #manager.add(engine.target_data)
 
@@ -87,7 +77,7 @@ def emit_and_execute(module_name = "", optimize = True):
         # execute it
         engine.run_function(this.main, [])
 
-        raise_if_set()
+        qy.raise_if_set()
 
     return decorator
 
@@ -107,7 +97,7 @@ def type_from_struct_type(dtype):
             members  += [type_from_dtype(field_dtype)]
             position += field_dtype.itemsize
 
-    return LLVM_Type.packed_struct(members)
+    return llvm.Type.packed_struct(members)
 
 def type_from_shaped_dtype(base, shape):
     """
@@ -115,7 +105,7 @@ def type_from_shaped_dtype(base, shape):
     """
 
     if shape:
-        return LLVM_Type.array(type_from_shaped_dtype(base, shape[1:]), shape[0])
+        return llvm.Type.array(type_from_shaped_dtype(base, shape[1:]), shape[0])
     else:
         return type_from_dtype(base)
 
@@ -127,11 +117,11 @@ def type_from_dtype(dtype):
     if dtype.shape:
         return type_from_shaped_dtype(dtype.base, dtype.shape)
     elif numpy.issubdtype(dtype, numpy.integer):
-        return LLVM_Type.int(dtype.itemsize * 8)
+        return llvm.Type.int(dtype.itemsize * 8)
     elif dtype == numpy.float64:
-        return LLVM_Type.double()
+        return llvm.Type.double()
     elif dtype == numpy.float32:
-        return LLVM_Type.float()
+        return llvm.Type.float()
     elif dtype.fields:
         return type_from_struct_type(dtype)
     else:
@@ -198,11 +188,11 @@ def dtype_from_type(type_):
     """
 
     mapping = {
-        llvm.core.TYPE_FLOAT   : (lambda _ : numpy.dtype(numpy.float32)),
-        llvm.core.TYPE_DOUBLE  : (lambda _ : numpy.dtype(numpy.float64)),
-        llvm.core.TYPE_INTEGER : dtype_from_integer_type,
-        llvm.core.TYPE_STRUCT  : dtype_from_struct_type,
-        llvm.core.TYPE_ARRAY   : dtype_from_array_type,
+        llvm.TYPE_FLOAT   : (lambda _ : numpy.dtype(numpy.float32)),
+        llvm.TYPE_DOUBLE  : (lambda _ : numpy.dtype(numpy.float64)),
+        llvm.TYPE_INTEGER : dtype_from_integer_type,
+        llvm.TYPE_STRUCT  : dtype_from_struct_type,
+        llvm.TYPE_ARRAY   : dtype_from_array_type,
         }
 
     return mapping[type_.kind](type_)

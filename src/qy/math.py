@@ -2,22 +2,14 @@
 @author: Bryan Silverthorn <bcs@cargo-cult.org>
 """
 
-from __future__ import absolute_import
-
 import qy
-
-from qy import (
-    get_qy,
-    Function,
-    Variable,
-    )
 
 def ln_gamma(x):
     """
     Compute the log of the gamma function.
     """
 
-    @Function.define_once(float, [float])
+    @qy.Function.define_once(float, [float])
     def ln_gamma_d(x_in):
         _ln_gamma(x_in)
 
@@ -205,14 +197,14 @@ def ln_choose(n, m):
     Compute the log of the choose function.
     """
 
-    @Function.define_once(float, [float, float])
+    @qy.Function.define_once(float, [float, float])
     def ln_choose_d(n, m):
         @qy.if_else((m == n) | (m == 0.0))
         def _(then):
             if then:
                 qy.return_(0.0)
             else:
-                k = Variable(float)
+                k = qy.Variable(float)
 
                 @qy.if_else(m * 2.0 > n)
                 def _(then):

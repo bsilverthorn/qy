@@ -4,14 +4,16 @@ Stuff to do for Qy
 Roadmaps
 --------
 
-### to version 0.1
+### Path to version 0.1
 
 (1) first reorg: split out the value classes
 (2) improve the StridedArray integration
 (3) build the type system
-(4) write tutorial documentation on github
+(4) make pip/easy\_installable (ideally via cmake)
+(5) upload to PyPI
+(6) write tutorial documentation on github
 
-### to version 0.2
+### Path to version 0.2
 
 (1) set up automated benchmarks with versus-numpy support
 (2) pick and meet a code coverage target
